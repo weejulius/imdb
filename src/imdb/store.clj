@@ -1,31 +1,44 @@
-(ns imdb.store
-  {:doc "the store of pieces"})
-
+(ns ^{:doc "the store of pieces"}
+  imdb.store
+  (:require [imdb.schema :as schema])
+  (:use [clojure.test]))
 
 (def store (atom {}))
 
-(defn create-store
-  [entity-name])
+(defn ref-store
+  [entity-name]
+  store)
+
+(defn simpfy-piece
+  "throw the unnessesaries"
+  [piece]
+  [(schema/piece-name-id (:entity piece) (:key piece))
+   (:val piece)])
 
 (defn append-piece
   [piece]
   (swap! store (fn [cur]
-                 (assoc-in cur [(:entity piece) (:id piece)]  piece))))
+                 (assoc-in cur [(:entity piece) (:id piece)]
+                           (simpfy-piece piece)))))
 
 (defn append-pieces
   [pieces]
-  (map #(append-piece %) pieces))
+  (doseq [piece pieces]
+    (append-piece piece)))
 
 
 
 (defn find-by-id
+  "find piece by id"
   [entity-name id]
   (get-in @store [entity-name id]))
 
 
 (defn find-by-ids
+  "find pieces by ids"
   [entity-name ids]
-  (filter (comp not empty?) (map #(find-by-id entity-name %) ids)))
+  (filter (comp not empty?)
+          (map #(find-by-id entity-name %) ids)))
 
 
 (def piece-example
@@ -34,6 +47,10 @@
 (def pieces-example
   '({:eid 112126, :entity :user, :id 14345969392870000, :key :event, :val :change-name, :date 1212121}
     {:eid 112126, :entity :user, :id 14345969392890000, :key :name, :val "hello", :date 1212121}))
+
+(deftest test-simply-piece
+  (testing ""
+    (is (= [2 :change-name] (simpfy-piece piece-example)))))
 
 #_(append-piece piece-example)
 #_(append-pieces pieces-example)

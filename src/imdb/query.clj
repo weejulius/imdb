@@ -1,7 +1,8 @@
 (ns ^{:doc "used to query the index and retrieve and merge result from store"}
   imdb.query
   (:require [imdb.index :as idx]
-            [imdb.store :as store]))
+            [imdb.store :as store]
+            [imdb.schema :as sc]))
 
 
 
@@ -18,8 +19,9 @@
                   :entity entity-name}]
       (reduce (fn [r k]
                 (if k (-> r
-                          (assoc (:key k) (:val k))
-                          (assoc :date (:date k)))))
+                          (assoc
+                           (sc/piece-name-by-id entity-name (first k))
+                           (second k)))))
               entity pieces))))
 
 

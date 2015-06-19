@@ -2,7 +2,8 @@
          one is for the key, the other is for value"}
   imdb.index
   (:require [imdb.schema :as schema]
-            [pandect.core :refer [crc32 crc32-file]]))
+            [pandect.core :refer [crc32 crc32-file]]
+            [common.component :as cmpt]))
 
 
 (defn in?
@@ -103,6 +104,7 @@
 
 (def piece-example
   {:eid 112128, :entity :user, :id 14345969392890000, :key :event, :val :change-name, :date 1212121})
+
 
 #_(insert-to-kindex piece-example)
 #_(insert-to-vindex piece-example)

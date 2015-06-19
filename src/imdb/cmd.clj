@@ -22,7 +22,10 @@
    :val "value"
    :date 12121212})
 
+;;;
+
 (defn gen-piece-id
+  "generate id for new piece"
   [entity-name]
   (idc/gen-id))
 
@@ -32,52 +35,53 @@
   (some #(= elm %) seq))
 
 (defn mk-piece
-  [entity-name entity-id date kv]
+  "make the piece"
+  [entity-name entity-id kv]
   (let [k (first kv)
         v (second kv)]
-    (if (not (in? [:entity :date :eid] k))
+    (if (not (in? [:entity :eid] k))
       {:eid entity-id
        :entity entity-name
        :id (gen-piece-id entity-name)
        :key k
-       :val v
-       :date date})))
+       :val v})))
 
-;;todo validate pieces
+;;TODO validate pieces
 (defn cmd-to-pieces
   "break the cmd to pieces"
   [cmd]
   (let [entity-name (:entity cmd)
         event (:event cmd)
-        entity-id (:eid cmd)
-        date (:date cmd)]
-    (filter (comp not empty?) (map #(mk-piece entity-name entity-id date %) cmd))))
+        entity-id (:eid cmd)]
+    (filter (comp not empty?)
+            (map #(mk-piece entity-name entity-id %) cmd))))
 
 (defn pub
   "the client api used to send cmd to server"
   [cmd]
   (if-let [pieces (cmd-to-pieces cmd)]
     (do
-      (doall (map #(idx/update-index %) pieces))
+      (doseq [piece pieces]
+        (idx/update-index piece))
       (store/append-pieces pieces))))
-
-#_(cmd-to-pieces cmd-example)
-
-
 
 (deftest test-cmd-to-pieces
   (testing ""
-    (is (= 2 (count (cmd-to-pieces cmd-example))))))
-
-
-(pub cmd-example)
+    (is (= 3 (count (cmd-to-pieces cmd-example))))))
 
 (deftest test-pub
-  (test ""
-        (is ())))
+  (testing ""
+    (let [eid 1121130
+          cmd {:entity :user
+               :event :change-name
+               :eid eid
+               :date 1212121
+               :name "new name"}]
+      (pub cmd)
+      (is (= cmd (q/find-entity :user eid))))))
 
-
-(q/find-entity :user 112122)
-(q/find-entity-by-index :user :name "new name")
+#_(pub cmd-example)
+#_(q/find-entity :user 112122)
+#_(q/find-entity-by-index :user :name "new name")
 (str @store/store)
-(str @idx/user-kindex)
+#_(str @idx/user-kindex)
