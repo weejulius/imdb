@@ -24,7 +24,8 @@
 
 (defn piece-name-id
   [entity-name piece-name]
-  (get-in @piece-name-map [entity-name piece-name]))
+  (get-in @piece-name-map
+          [entity-name piece-name]))
 
 (def schemas
   (atom {:user {:name [:string :index :uniqure]
@@ -46,4 +47,4 @@
 (deftest test-piece-name-by-id
   (testing ""
     (is (= :name (piece-name-by-id :user 1)))
-    (is (= 3 (piece-name-id :user :event)))))
+    (is (= 2 (piece-name-id :user :event)))))

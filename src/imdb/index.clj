@@ -28,20 +28,24 @@
     ))
 
 (defn insert-to-kindex
-  "insert piece to k index"
+  "insert piece to k index, the data structure is
+   { eid { piece-name-id [[id  tx-id] ..]}
+         { piece-name-id1 [[id1 tx-id1] ..]}}"
   [piece]
   (let [entity-name (:entity piece)
         entity-id (:eid piece)
         kindex (ref-kindex entity-name)
-        id (:id piece)]
+        id (:id piece)
+        piece-name-id (schema/piece-name-id (:key piece))
+        tx-id (:tx-id piece)]
     (swap! kindex (fn [cur]
                     (update-in
                      cur
-                     [entity-id]
-                     (fn [eindex id]
-                       (if eindex (conj eindex id)
-                           (sorted-set id)))
-                     id)))))
+                     [entity-id piece-name-id]
+                     (fn [eindex item]
+                       (if eindex (conj eindex item)
+                           (sorted-set item)))
+                     [id tx-id])))))
 
 
 (def name-user-vindex
@@ -62,6 +66,8 @@
   (if s (crc32 (str s))))
 
 (defn insert-to-str-vindex
+  "insert new str to index, the data structure is
+   btree"
   [piece]
   (let [entity-name (:entity piece)
         key (:key piece)

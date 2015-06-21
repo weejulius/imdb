@@ -4,7 +4,8 @@
             [imdb.index :as idx]
             [imdb.id-creator :as idc]
             [imdb.store :as store]
-            [imdb.query :as q])
+            [imdb.query :as q]
+            [imdb.transaction :as tx])
   (:use [clojure.test]))
 
 
@@ -27,7 +28,7 @@
 (defn gen-piece-id
   "generate id for new piece"
   [entity-name]
-  (idc/gen-id))
+  (idc/gen-id-by-time))
 
 (defn in?
   "true if seq contains elm"
@@ -60,10 +61,12 @@
   "the client api used to send cmd to server"
   [cmd]
   (if-let [pieces (cmd-to-pieces cmd)]
-    (do
-      (doseq [piece pieces]
-        (idx/update-index piece))
-      (store/append-pieces pieces))))
+    (tx/run-tx pieces
+               (fn [pieces]
+                 (do
+                   (doseq [piece pieces]
+                     (idx/update-index piece))
+                   (store/append-pieces pieces)))) ))
 
 (deftest test-cmd-to-pieces
   (testing ""
