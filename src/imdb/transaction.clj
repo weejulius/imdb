@@ -31,8 +31,8 @@
 (def tx (atom {}))
 
 (defn log-tx
-  [tx-id pieces]
-  (log/log-tx tx-id false))
+  "log the transcaction at the beginning, but now it is not nessesary"
+  [tx-id pieces])
 
 (defn log-tx-done
   "log the done of the transaction"
@@ -46,7 +46,8 @@
               (assoc c tx-id 0))))
 
 (defn unmark-tx
-  "unmark the transaction when it is done"
+  "unmark the transaction when it is done
+   TODO: it should be atomic, but now it is not"
   [tx-id pieces]
   (log-tx-done tx-id pieces)
   (swap! tx (fn [c]
@@ -67,7 +68,7 @@
   "run a transaction"
   [pieces f]
   (let [tx-id (gen-tx-id)
-        pieces (tie-to-tx pieces)]
+        pieces (tie-to-tx tx-id pieces)]
     (mark-tx tx-id pieces)
     (f pieces)
     (unmark-tx tx-id pieces)))

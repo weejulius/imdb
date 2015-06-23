@@ -2,7 +2,7 @@
          one is for the key, the other is for value"}
   imdb.index
   (:require [imdb.schema :as schema]
-            [pandect.core :refer [crc32 crc32-file]]
+            [pandect.core :refer [crc32 crc32-file ]]
             [common.component :as cmpt]))
 
 
@@ -29,14 +29,15 @@
 
 (defn insert-to-kindex
   "insert piece to k index, the data structure is
-   { eid { piece-name-id [[id  tx-id] ..]}
-         { piece-name-id1 [[id1 tx-id1] ..]}}"
+   { eid { piece-name-id [[id  tx-id] ..]
+           piece-name-id1 [[id1 tx-id1] ..]
+         } "
   [piece]
   (let [entity-name (:entity piece)
         entity-id (:eid piece)
         kindex (ref-kindex entity-name)
         id (:id piece)
-        piece-name-id (schema/piece-name-id (:key piece))
+        piece-name-id (schema/piece-name-id entity-name (:key piece))
         tx-id (:tx-id piece)]
     (swap! kindex (fn [cur]
                     (update-in
@@ -63,7 +64,7 @@
 
 (defn hash-str
   [s]
-  (if s (crc32 (str s))))
+  s)
 
 (defn insert-to-str-vindex
   "insert new str to index, the data structure is
@@ -75,9 +76,10 @@
         idx (hash-str v)
         vindex (ref-vindex entity-name key)
         id (:id piece)
-        eid (:eid piece)]
+        eid (:eid piece)
+        tx-id (:tx-id piece)]
     (swap! vindex (fn [cur]
-                    (update-in cur [idx] conj [eid id v])))))
+                    (update-in cur [idx] conj [eid id v tx-id])))))
 
 (defn insert-to-vindex
   [piece]
@@ -106,7 +108,19 @@
   (let [vindex (ref-vindex entity-name key)
         hs (hash-str val)
         idx-v (get @vindex hs)]
-    (set (map #(first %) idx-v))))
+    idx-v))
+
+
+(defn range-vindex
+  [entity-name key from to]
+  (let [vindex (ref-vindex entity-name key)
+        hs-from (hash-str from)
+        hs-to (hash-str to)
+        idx-v (subseq @vindex >= hs-from <= hs-to)]
+    (if idx-v
+      (reduce (fn [r i]
+                (concat r (second i))) [] idx-v))) )
+
 
 (def piece-example
   {:eid 112128, :entity :user, :id 14345969392890000, :key :event, :val :change-name, :date 1212121})

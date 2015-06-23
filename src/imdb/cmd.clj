@@ -81,10 +81,39 @@
                :date 1212121
                :name "new name"}]
       (pub cmd)
-      (is (= cmd (q/find-entity :user eid))))))
+      (is (= cmd (q/find-entity :user eid)))
+      (is (= cmd (first (q/find-entity-by-index :user :name "new name")))))))
+
+
+(deftest test-range-query
+  (testing ""
+    (let [eid 112222
+          cmds  [
+                 {:entity :user
+                  :event :change-name
+                  :eid 111112
+                  :date 1212121
+                  :name "bfame"}
+
+                 {:entity :user
+                  :event :change-name
+                  :eid 111111
+                  :date 1212121
+                  :name "aname"}
+                 {:entity :user
+                  :event :change-name
+                  :eid 111112
+                  :date 1212121
+                  :name "bname"}
+                 ]]
+      (doseq [cmd cmds]
+        (pub cmd))
+      (is (= (rest cmds)
+             (q/range-entities :user :name "aname" "zname"))))))
 
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)
 #_(q/find-entity-by-index :user :name "new name")
 (str @store/store)
 #_(str @idx/user-kindex)
+(str @idx/name-user-vindex)

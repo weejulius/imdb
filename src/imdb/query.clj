@@ -22,9 +22,9 @@
 
 (defn find-pieces-by-entity-id
   [entity-name id]
-  (if-let [pieces-id (idx/val-kindex entity-name id)
-           pieces-id (filter-pieces pieces-id)]
-    (store/find-by-ids entity-name pieces-id)))
+  (if-let [pieces-id (idx/val-kindex entity-name id)]
+    (store/find-by-ids entity-name
+                       (filter-pieces pieces-id nil))))
 
 
 (defn cast-to-entity
@@ -46,12 +46,36 @@
                   (find-pieces-by-entity-id entity-name eid)))
 
 
+(defn filter-vindex
+  [index]
+  (filter (comp not nil?)
+          (sort (set (map (fn [idx-item]
+                            (let [eid (first idx-item)
+                                  ok? (tx/tx-done? (nth idx-item 3))]
+                              (if ok? eid)))
+                          index)))))
+
+
+(deftest test-filter-vindex
+  (testing ""
+    (is (= '(121) (filter-vindex [[121 1111 121 121]])))))
+
 ;; a simple usage of index
 (defn find-entity-by-index
   [entity-name key val]
-  (let [entities-id (idx/val-vindex entity-name key val)]
-    (map #(find-entity entity-name %) entities-id)))
+  (let [index (idx/val-vindex entity-name key val)
+        entities-id  (filter-vindex index)]
+    (if-not (empty? entities-id)
+      (map #(find-entity entity-name %)
+           entities-id))))
 
+(defn range-entities
+  [entity-name key from to]
+  (let [index (idx/range-vindex entity-name key from to)
+        entities-id  (filter-vindex index)]
+    (if-not (empty? entities-id)
+      (map #(find-entity entity-name %)
+           entities-id))))
 
 (deftest test-filter-pieces
   (testing ""

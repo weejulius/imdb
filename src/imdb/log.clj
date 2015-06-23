@@ -7,7 +7,7 @@
 
 (def logs "the logs of cmd" [])
 
-(def store (leveldb/create-db "/tmp/tx-log2" {:key-encoder cvt/->bytes
+(def store (leveldb/create-db "/tmp/tx-log" {:key-encoder cvt/->bytes
                                               :val-encoder cvt/->bytes
                                               :key-decoder cvt/->long
                                               :val-decoder cvt/->data}))

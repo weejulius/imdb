@@ -1,12 +1,12 @@
 # todo list for 1.0
 
-- id creator for entity
+- [DONE] id creator for entity
 - get pieces id from kindex according to time
-- log the transaction
+- [DONE] log the transaction
 - build index from log
 - get entities id from vindex according to time
 - btree impl of index
-- acid impl
+- [DONE] acid impl
 - performance improvement
 - uniqureness index
 - long,integer,date vindex
@@ -14,3 +14,7 @@
 - support componous index and query
 - support limit,order
 - live cache
+- [DONE] range query
+
+
+# Done
