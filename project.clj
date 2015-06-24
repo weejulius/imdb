@@ -8,4 +8,5 @@
                  [common-clj "1.0.0-SNAPSHOT"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [factual/clj-leveldb "0.1.1"]
+                 [org.clojure/test.check "0.7.0"]
                  [it.unimi.dsi/fastutil "7.0.6"]])

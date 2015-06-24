@@ -55,39 +55,43 @@
 (def event-user-vindex
   (atom (sorted-map)))
 
+(def age-user-vindex
+  (atom (sorted-map)))
 
 (defn ref-vindex
   [entity-name key]
   (case key
     :event event-user-vindex
-    :name name-user-vindex))
+    :name name-user-vindex
+    :age age-user-vindex))
 
-(defn hash-str
+(defn hash-key
   [s]
-  s)
+  (if (keyword? s) (str s)
+      s))
 
-(defn insert-to-str-vindex
-  "insert new str to index, the data structure is
-   btree"
+(defn insert-item-to-vindex
+  "insert new item to index"
   [piece]
   (let [entity-name (:entity piece)
         key (:key piece)
         v (:val piece)
-        idx (hash-str v)
+        idx (hash-key v)
         vindex (ref-vindex entity-name key)
         id (:id piece)
         eid (:eid piece)
         tx-id (:tx-id piece)]
-    (swap! vindex (fn [cur]
-                    (update-in cur [idx] conj [eid id v tx-id])))))
+    (if vindex
+      (swap! vindex (fn [cur]
+                      (update-in cur [idx] conj [eid id tx-id]))))))
 
 (defn insert-to-vindex
   [piece]
   (let [entity-name (:entity piece)
         key (:key piece)
         schema-def (schema/piece-schema-def entity-name key)]
-    (if (in? schema-def :string)
-      (insert-to-str-vindex piece))))
+    (if schema-def
+      (insert-item-to-vindex piece))))
 
 
 (defn update-index
@@ -106,20 +110,20 @@
 (defn val-vindex
   [entity-name key val]
   (let [vindex (ref-vindex entity-name key)
-        hs (hash-str val)
+        hs (hash-key val)
         idx-v (get @vindex hs)]
     idx-v))
 
-
-(defn range-vindex
-  [entity-name key from to]
+(defn func-vindex
+  "run func to vindex"
+  [entity-name key f]
   (let [vindex (ref-vindex entity-name key)
-        hs-from (hash-str from)
-        hs-to (hash-str to)
-        idx-v (subseq @vindex >= hs-from <= hs-to)]
+        idx-v (f @vindex)]
     (if idx-v
       (reduce (fn [r i]
-                (concat r (second i))) [] idx-v))) )
+                (concat r (second i))) [] idx-v))))
+
+
 
 
 (def piece-example
@@ -131,5 +135,5 @@
 #_(update-index piece-example)
 #_(val-kindex :user 112128)
 #_(val-vindex :user :event :change-name)
-@(ref-vindex :user :event)
+@(ref-vindex :user :name)
 @(ref-kindex :user)

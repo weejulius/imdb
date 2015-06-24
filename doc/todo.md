@@ -5,16 +5,14 @@
 - [DONE] log the transaction
 - build index from log
 - get entities id from vindex according to time
-- btree impl of index
 - [DONE] acid impl
 - performance improvement
-- uniqureness index
 - long,integer,date vindex
 - live index
-- support componous index and query
-- support limit,order
 - live cache
 - [DONE] range query
+- sql syntax [ >= <= between like order-by limit and or in comp-index not-null unique ]
 
-
-# Done
+# 6.24
+- remove value in the index as the value is the key now
+- add perf test, the result pub:5000/s query:50000/s query-vindex:10000/s

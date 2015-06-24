@@ -51,7 +51,7 @@
   (filter (comp not nil?)
           (sort (set (map (fn [idx-item]
                             (let [eid (first idx-item)
-                                  ok? (tx/tx-done? (nth idx-item 3))]
+                                  ok? (tx/tx-done? (nth idx-item 2))]
                               (if ok? eid)))
                           index)))))
 
@@ -69,13 +69,34 @@
       (map #(find-entity entity-name %)
            entities-id))))
 
-(defn range-entities
-  [entity-name key from to]
-  (let [index (idx/range-vindex entity-name key from to)
-        entities-id  (filter-vindex index)]
-    (if-not (empty? entities-id)
-      (map #(find-entity entity-name %)
-           entities-id))))
+(defn f-between
+  [index {from :from to :to}]
+  (subseq index >= (idx/hash-key from) <= (idx/hash-key to)))
+
+
+(defn f-order-by
+  [index {asc :asc}]
+  (if asc
+    (reverse index)
+    index))
+
+(defn f-limit
+  [index {start :start num :num}]
+  (take num (drop (dec start) index)))
+
+;index (idx/func-vindex entity-name key between from to)
+
+(defn fetch-entities-from-index
+  [index entity-name]
+  (if-let [entities-id  (filter-vindex index)]
+    (map #(find-entity entity-name %)
+         entities-id)))
+
+(defn query
+  [entity-name key f & {:as params}]
+  (-> (idx/func-vindex entity-name key #(f % params))
+      (fetch-entities-from-index entity-name)))
+
 
 (deftest test-filter-pieces
   (testing ""

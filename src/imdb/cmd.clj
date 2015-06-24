@@ -91,10 +91,9 @@
           cmds  [
                  {:entity :user
                   :event :change-name
-                  :eid 111112
+                  :eid 111113
                   :date 1212121
-                  :name "bfame"}
-
+                  :name "cfame"}
                  {:entity :user
                   :event :change-name
                   :eid 111111
@@ -109,11 +108,18 @@
       (doseq [cmd cmds]
         (pub cmd))
       (is (= (rest cmds)
-             (q/range-entities :user :name "aname" "zname"))))))
+             (q/query :user :name  q/f-between :from "aname" :to "bname")))
+      (is (= 2 (count (q/query :user :name (fn [i p]
+                                             (-> i
+                                                 (q/f-between p)
+                                                 (q/f-limit p)
+                                                 (q/f-order-by p)))
+                               :from "aname" :to "cname" :asc true :start 2 :num 2)) )))))
 
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)
 #_(q/find-entity-by-index :user :name "new name")
 (str @store/store)
+
 #_(str @idx/user-kindex)
 (str @idx/name-user-vindex)
