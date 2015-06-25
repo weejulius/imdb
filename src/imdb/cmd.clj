@@ -130,6 +130,3 @@
 #_(q/find-entity :user 112122)
 #_(q/find-entity-by-index :user :name "new name")
 (str @store/store)
-
-#_(str @idx/user-kindex)
-(str @idx/name-user-vindex)

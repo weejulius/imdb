@@ -21,13 +21,12 @@
 
 #_(time (tc/quick-check 10000 pub-cmds))
 
-(str (count @idx/name-user-vindex) )
 
 (def query
   (prop/for-all [eid gen/int]
                 (or (q/find-entity :user eid) true) ))
 
-(time (tc/quick-check 100000 query))
+#_(time (tc/quick-check 100000 query))
 
 
 (q/find-entity :user 195)
@@ -47,4 +46,4 @@
 
 #_(time (tc/quick-check 13000 query-by-age))
 
-(q/find-entity-by-index :user :age 2)
+#_(q/find-entity-by-index :user :age 2)

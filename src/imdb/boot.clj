@@ -5,6 +5,10 @@
 (def before-fs (atom []))
 (def after-fs (atom []))
 
+(defn- init
+  []
+  (alter-var-root #'state (constantly (atom {}))))
+
 
 (defn attach [k v]
   (swap! state assoc k v))
@@ -16,6 +20,7 @@
   (swap! before-fs conj f))
 
 (defn start! []
+
   (reduce (fn [r f]
             (f r))
           state
@@ -33,7 +38,8 @@
     (reduce (fn [r f]
               (f r))
             state
-            @after-fs)))
+            @after-fs))
+  (init))
 
 
 

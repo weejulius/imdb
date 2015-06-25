@@ -8,10 +8,9 @@
 
 (def logs "the logs of cmd" [])
 
-
 (b/before!
  (fn [state]
-   (b/attach :log-db (leveldb/create-db (b/get-state :tx-db-path "/tmp/tx-db")
+   (b/attach :log-db (leveldb/create-db (b/get-state :tx-db-path "/tmp/tx-db-test")
                                         {:key-encoder cvt/->bytes
                                          :val-encoder cvt/->bytes
                                          :key-decoder cvt/->long
@@ -20,8 +19,9 @@
 
 (b/after!
  (fn [state]
-   (.close (b/get-state :log-db))
-   (b/dis-attach :log-db)
+   (when (b/get-state :log-db)
+     (.close (b/get-state :log-db))
+     (b/dis-attach :log-db))
    state))
 
 
@@ -29,9 +29,6 @@
   [tx-id pieces]
   (leveldb/put (b/get-state :log-db) tx-id pieces))
 
-(defn stop
-  []
-  )
 
 (deftest test-log-tx
   (testing ""

@@ -3,7 +3,8 @@
   imdb.index
   (:require [imdb.schema :as schema]
             [pandect.core :refer [crc32 crc32-file ]]
-            [common.component :as cmpt]))
+            [common.component :as cmpt]
+            [imdb.boot :as b]))
 
 
 (defn in?
@@ -12,20 +13,29 @@
   (some #(= elm %) seq))
 
 
-(def user-kindex
-  "the kindex for user"
-  (atom {}))
+(defn init-kindex
+  [entity-name]
+  (let [kidx (atom {})]
+    (b/attach (str entity-name "-kidx") kidx)
+    kidx))
 
-(def event-kindex
-  "the kindex for user"
-  (atom {}))
+(defn init-vindex
+  [entity-name k]
+  (let [vidx (atom (sorted-map))]
+    (b/attach (str entity-name "-" k "-vidx") vidx)
+    vidx))
 
 (defn ref-kindex
   "get the ref of k index by entity name"
   [entity-name]
-  (case  entity-name
-    :user user-kindex
-    ))
+  (let [ref (b/get-state  (str entity-name "-kidx"))]
+    (if ref ref (init-kindex entity-name))))
+
+(defn ref-vindex
+  "get the ref of v index by entity name and key"
+  [entity-name key]
+  (let [ref (b/get-state  (str entity-name "-" key "-vidx"))]
+    (if ref ref (init-vindex entity-name key))))
 
 (defn insert-to-kindex
   "insert piece to k index, the data structure is
@@ -49,21 +59,7 @@
                      [id tx-id])))))
 
 
-(def name-user-vindex
-  (atom (sorted-map)))
 
-(def event-user-vindex
-  (atom (sorted-map)))
-
-(def age-user-vindex
-  (atom (sorted-map)))
-
-(defn ref-vindex
-  [entity-name key]
-  (case key
-    :event event-user-vindex
-    :name name-user-vindex
-    :age age-user-vindex))
 
 (defn hash-key
   [s]
