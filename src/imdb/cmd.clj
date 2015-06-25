@@ -84,6 +84,12 @@
       (is (= cmd (q/find-entity :user eid)))
       (is (= cmd (first (q/find-entity-by-index :user :name "new name")))))))
 
+(defn f->
+  [& fs]
+  (fn [i p]
+    (reduce (fn [ r f] (f r p))
+            i
+            fs)))
 
 (deftest test-range-query
   (testing ""
@@ -107,14 +113,18 @@
                  ]]
       (doseq [cmd cmds]
         (pub cmd))
-      (is (= (rest cmds)
-             (q/query :user :name  q/f-between :from "aname" :to "bname")))
-      (is (= 2 (count (q/query :user :name (fn [i p]
-                                             (-> i
-                                                 (q/f-between p)
-                                                 (q/f-limit p)
-                                                 (q/f-order-by p)))
-                               :from "aname" :to "cname" :asc true :start 2 :num 2)) )))))
+      (is (= 2
+             (count (q/query :user :name  q/f-between :from "aname" :to "bname"))))
+      (is (= '(111113 111112)
+             (map #(:eid %)
+                  (q/query :user :name
+                           (f-> q/f-between q/f-order-by q/f-limit)
+                           :from "aname" :to "cname" :asc true :start 1 :num 2))))
+      (is (= '(111112 111113)
+             (map #(:eid %)
+                  (q/query :user :name
+                           (f-> q/f-between q/f-order-by q/f-limit)
+                           :from "aname" :to "cname" :start 2 :num 2)))))))
 
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)

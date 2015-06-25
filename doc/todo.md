@@ -11,7 +11,7 @@
 - live index
 - live cache
 - [DONE] range query
-- sql syntax [ >= <= between like order-by limit and or in comp-index not-null unique ]
+- sql syntax [ count >= <= between like order-by limit and or in comp-index not-null unique ]
 
 # 6.24
 - remove value in the index as the value is the key now

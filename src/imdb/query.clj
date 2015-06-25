@@ -49,11 +49,11 @@
 (defn filter-vindex
   [index]
   (filter (comp not nil?)
-          (sort (set (map (fn [idx-item]
-                            (let [eid (first idx-item)
-                                  ok? (tx/tx-done? (nth idx-item 2))]
-                              (if ok? eid)))
-                          index)))))
+          (distinct  (map (fn [idx-item]
+                       (let [eid (first idx-item)
+                             ok? (tx/tx-done? (nth idx-item 2))]
+                         (if ok? eid)))
+                     index))))
 
 
 (deftest test-filter-vindex
