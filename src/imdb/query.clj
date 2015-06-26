@@ -3,6 +3,7 @@
   (:require [imdb.index :as idx]
             [imdb.store :as store]
             [imdb.schema :as sc]
+            [imdb.cmd :as c]
             [imdb.transaction :as tx])
   (:use [clojure.test]))
 
@@ -108,3 +109,151 @@
 
 (find-entity :user 112121)
 #_(find-entity-by-index :user :event :change-name)
+
+
+
+
+;;;; redesign the query engine
+;;;; search firstly and merge the result
+
+
+(defn in?
+  "true if seq contains elm"
+  [seq elm]
+  (some #(= elm %) seq))
+
+(defmulti search "search the index"
+  (fn [i r]
+    (let [k (if (coll? i) (first i) i)
+          new(cond
+               (in? [:between :and :or :asc :>= :limit :count] k) k
+               (and (coll? i) (sc/piece-name-id k (second i)))  :index)]
+      new)))
+
+(defmethod search :between [[k p] r]
+  (subseq r >= (idx/hash-key (first p)) <= (idx/hash-key (second p))))
+
+(defmethod search :asc [i r]
+  (reverse r))
+
+(defmethod search :>= [[k p] r]
+  (subseq r >= (idx/hash-key p)))
+
+
+(defmethod search :limit [[k i] r]
+  (take (second i) (drop (dec (first i)) r)))
+
+(defmethod search :count [i r]
+  (count r))
+
+(defn proc-index
+  [c]
+  (let [entity-name (first c)
+        k (second c)
+        s (nnext c)
+        idx (idx/ref-vindex entity-name k)]
+    (reduce (fn [r i]
+              (search i r))
+            @idx
+            s)))
+
+
+(defn merge-index [idx]
+  (if idx
+    (reduce (fn [r i]
+              (concat r (second i))) [] idx)))
+
+(defmethod search :index [i r]
+  (-> (proc-index i)
+      merge-index
+      filter-vindex))
+
+(defmethod search nil [i r])
+
+(defmethod search :and [i r]
+  (let [c1 (second i)
+        c2 (nth i 2)
+        v1  (search c1 r)
+        v2 (search c2 r)]
+    (filter (fn [i] (in? v2 i)) v1)))
+
+(defmethod search :or [i r]
+  (let [c1 (second i)
+        c2 (nth i 2)
+        v1 (search c1)
+        v2 (search c2)]
+    (concat v1 v2)))
+
+
+
+
+
+
+
+
+
+
+(defn q
+  [m]
+  (let [query (:query m)
+        entity-name (:entity m)
+        idx (search query nil)
+        cnt (search [:count] idx)
+        idx (search [:limit (:limit m)] idx)]
+    (when idx
+      {:cnt cnt
+       :idx idx
+       :entities (map #(find-entity entity-name %)
+                      idx)})))
+
+(def query-sample
+  {:entity :user
+   :query [:and
+           [:user :name [:between ["aname" "cname"]] ]
+           [:user :age [:>= 18]]]
+   :count true
+   :limit [2 3]} )
+
+(def query-sample1
+  {:entity :user
+   :query [:user :name [:between ["aname" "bname"]] :asc]
+   :count true
+   :limit [2 3]
+   })
+
+(deftest test-query
+  (testing ""
+    (let [cmds  [
+                 {:entity :user
+                  :event :change-name
+                  :eid 111119
+                  :date 1212121
+                  :age 12
+                  :name "dname"}
+
+                 {:entity :user
+                  :event :change-name
+                  :eid 111113
+                  :date 1212121
+                  :age 18
+                  :name "cfame"}
+                 {:entity :user
+                  :event :change-name
+                  :eid 111111
+                  :age 88
+                  :date 1212121
+                  :name "aname"}
+                 {:entity :user
+                  :event :change-name
+                  :age 3
+                  :eid 111112
+                  :date 1212121
+                  :name "bname"}
+                 ]]
+      (doseq [cmd cmds]
+        (c/pub cmd))
+      (is (= '(111113) (:idx (q query-sample))))
+      (is (= '(111111) (:idx (q query-sample1)))) )))
+
+(q query-sample1)
+(q query-sample)

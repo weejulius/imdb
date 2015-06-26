@@ -4,7 +4,6 @@
             [imdb.index :as idx]
             [imdb.id-creator :as idc]
             [imdb.store :as store]
-            [imdb.query :as q]
             [imdb.transaction :as tx])
   (:use [clojure.test]))
 
@@ -72,17 +71,6 @@
   (testing ""
     (is (= 3 (count (cmd-to-pieces cmd-example))))))
 
-(deftest test-pub
-  (testing ""
-    (let [eid 1121130
-          cmd {:entity :user
-               :event :change-name
-               :eid eid
-               :date 1212121
-               :name "new name"}]
-      (pub cmd)
-      (is (= cmd (q/find-entity :user eid)))
-      (is (= cmd (first (q/find-entity-by-index :user :name "new name")))))))
 
 (defn f->
   [& fs]
@@ -91,40 +79,6 @@
             i
             fs)))
 
-(deftest test-range-query
-  (testing ""
-    (let [eid 112222
-          cmds  [
-                 {:entity :user
-                  :event :change-name
-                  :eid 111113
-                  :date 1212121
-                  :name "cfame"}
-                 {:entity :user
-                  :event :change-name
-                  :eid 111111
-                  :date 1212121
-                  :name "aname"}
-                 {:entity :user
-                  :event :change-name
-                  :eid 111112
-                  :date 1212121
-                  :name "bname"}
-                 ]]
-      (doseq [cmd cmds]
-        (pub cmd))
-      (is (= 2
-             (count (q/query :user :name  q/f-between :from "aname" :to "bname"))))
-      (is (= '(111113 111112)
-             (map #(:eid %)
-                  (q/query :user :name
-                           (f-> q/f-between q/f-order-by q/f-limit)
-                           :from "aname" :to "cname" :asc true :start 1 :num 2))))
-      (is (= '(111112 111113)
-             (map #(:eid %)
-                  (q/query :user :name
-                           (f-> q/f-between q/f-order-by q/f-limit)
-                           :from "aname" :to "cname" :start 2 :num 2)))))))
 
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)

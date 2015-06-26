@@ -5,12 +5,11 @@
 (def before-fs (atom []))
 (def after-fs (atom []))
 
-(defn- init
-  []
-  (alter-var-root #'state (constantly (atom {}))))
+
 
 
 (defn attach [k v]
+  (println "attaching >>>>> " k "  " v)
   (swap! state assoc k v))
 
 (defn dis-attach [k]
@@ -19,10 +18,26 @@
 (defn before! [f]
   (swap! before-fs conj f))
 
-(defn start! []
+(defn add-lifecycle
+  [fstart fstop]
+  (swap! before-fs conj fstart)
+  (swap! after-fs conj fstop))
 
+(defn- clear
+  []
+  (alter-var-root #'state (constantly (atom {})))
+  (alter-var-root #'after-fs (constantly (atom [])))
+  (alter-var-root #'before-fs (constantly (atom []))))
+
+
+
+(defn start! [f]
+  (clear)
+  (f)
+  (println @before-fs)
+  (println @after-fs)
   (reduce (fn [r f]
-            (f r))
+            (f state))
           state
           @before-fs))
 
@@ -36,15 +51,17 @@
 (defn stop! []
   (if-not (empty? @state)
     (reduce (fn [r f]
-              (f r))
+              (f state))
             state
-            @after-fs))
-  (init))
+            @after-fs)))
 
 
+(defn only-refresh!
+  []
+  (refresh))
 
 (defn refresh!
-  []
+  [f]
   (stop!)
   (refresh)
-  (start!))
+  (start! f))
