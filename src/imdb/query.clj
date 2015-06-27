@@ -22,6 +22,7 @@
        pieces-id))
 
 (defn find-pieces-by-entity-id
+  "get the pieces id from kindex and fetch them"
   [entity-name id]
   (if-let [pieces-id (idx/val-kindex entity-name id)]
     (store/find-by-ids entity-name
@@ -29,6 +30,7 @@
 
 
 (defn cast-to-entity
+  "cast from pieces to entity"
   [entity-name entity-id pieces]
   (if (not (empty? pieces))
     (let [entity {:eid entity-id
@@ -47,57 +49,38 @@
                   (find-pieces-by-entity-id entity-name eid)))
 
 
-(defn filter-vindex
+
+
+(defn concat-valid-eids
+  "invalidate the vindex and concat all the entity ids"
   [index]
   (filter (comp not nil?)
           (distinct  (map (fn [idx-item]
-                       (let [eid (first idx-item)
-                             ok? (tx/tx-done? (nth idx-item 2))]
-                         (if ok? eid)))
-                     index))))
+                            (let [eid (first idx-item)
+                                  ok? (tx/tx-done? (nth idx-item 2))]
+                              (if ok? eid)))
+                          index))))
 
 
-(deftest test-filter-vindex
+(deftest test-concat-valid-eids
   (testing ""
-    (is (= '(121) (filter-vindex [[121 1111 121 121]])))))
+    (is (= '(121) (concat-valid-eids [[121 1111 121 121]])))))
 
 ;; a simple usage of index
 (defn find-entity-by-index
   [entity-name key val]
   (let [index (idx/val-vindex entity-name key val)
-        entities-id  (filter-vindex index)]
+        entities-id  (concat-valid-eids index)]
     (if-not (empty? entities-id)
       (map #(find-entity entity-name %)
            entities-id))))
 
-(defn f-between
-  [index {from :from to :to}]
-  (subseq index >= (idx/hash-key from) <= (idx/hash-key to)))
-
-
-(defn f-order-by
-  [index {asc :asc}]
-  (if asc
-    (reverse index)
-    index))
-
-(defn f-limit
-  [index {start :start num :num}]
-  (take num (drop (dec start) index)))
-
-;index (idx/func-vindex entity-name key between from to)
 
 (defn fetch-entities-from-index
   [index entity-name]
-  (if-let [entities-id  (filter-vindex index)]
+  (if-let [entities-id  (concat-valid-eids index)]
     (map #(find-entity entity-name %)
          entities-id)))
-
-(defn query
-  [entity-name key f & {:as params}]
-  (-> (idx/func-vindex entity-name key #(f % params))
-      (fetch-entities-from-index entity-name)))
-
 
 (deftest test-filter-pieces
   (testing ""
@@ -126,7 +109,7 @@
   (fn [i r]
     (let [k (if (coll? i) (first i) i)
           new(cond
-               (in? [:between :and :or :asc :>= :limit :count] k) k
+               (in? [:between :start-with :end-with :and :or :asc :>= :limit :count] k) k
                (and (coll? i) (sc/piece-name-id k (second i)))  :index)]
       new)))
 
@@ -135,6 +118,15 @@
 
 (defmethod search :asc [i r]
   (reverse r))
+
+
+(defmethod search :start-with [[k p] r]
+  (take-while (fn [i]
+                (.startsWith ^String (first i) p)) r))
+
+(defmethod search :end-with [[k p] r]
+  (filter (fn [i]
+            (.endsWith ^String (first i) p)) r))
 
 (defmethod search :>= [[k p] r]
   (subseq r >= (idx/hash-key p)))
@@ -157,16 +149,17 @@
             @idx
             s)))
 
-
-(defn merge-index [idx]
+(defn flatten-index
+  "flatten the index to coll from the index map"
+  [idx]
   (if idx
     (reduce (fn [r i]
               (concat r (second i))) [] idx)))
 
 (defmethod search :index [i r]
   (-> (proc-index i)
-      merge-index
-      filter-vindex))
+      flatten-index
+      concat-valid-eids))
 
 (defmethod search nil [i r])
 
@@ -185,19 +178,12 @@
     (concat v1 v2)))
 
 
-
-
-
-
-
-
-
-
 (defn q
+  "query the index"
   [m]
-  (let [query (:query m)
+  (let [query-clause (:query m)
         entity-name (:entity m)
-        idx (search query nil)
+        idx (search query-clause nil)
         cnt (search [:count] idx)
         idx (search [:limit (:limit m)] idx)]
     (when idx
@@ -221,6 +207,13 @@
    :limit [2 3]
    })
 
+(def query-end-with
+  {:entity :user
+   :query [:user :name [:end-with "name"] :asc]
+   :count true
+   :limit [1 2]
+   })
+
 (deftest test-query
   (testing ""
     (let [cmds  [
@@ -230,7 +223,6 @@
                   :date 1212121
                   :age 12
                   :name "dname"}
-
                  {:entity :user
                   :event :change-name
                   :eid 111113
@@ -253,7 +245,9 @@
       (doseq [cmd cmds]
         (c/pub cmd))
       (is (= '(111113) (:idx (q query-sample))))
-      (is (= '(111111) (:idx (q query-sample1)))) )))
+      (is (= '(111111) (:idx (q query-sample1))))
+      (is (= '(111119 111112) (:idx (q query-end-with)))))))
 
 (q query-sample1)
 (q query-sample)
+(q query-end-with)

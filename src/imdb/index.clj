@@ -110,16 +110,6 @@
         idx-v (get @vindex hs)]
     idx-v))
 
-(defn func-vindex
-  "run func to vindex"
-  [entity-name key f]
-  (let [vindex (ref-vindex entity-name key)
-        idx-v (f @vindex)]
-    (if idx-v
-      (reduce (fn [r i]
-                (concat r (second i))) [] idx-v))))
-
-
 
 
 (def piece-example
