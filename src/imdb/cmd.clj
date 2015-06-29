@@ -56,16 +56,7 @@
     (filter (comp not empty?)
             (map #(mk-piece entity-name entity-id %) cmd))))
 
-(defn pub
-  "the client api used to send cmd to server"
-  [cmd]
-  (if-let [pieces (cmd-to-pieces cmd)]
-    (tx/run-tx pieces
-               (fn [pieces]
-                 (do
-                   (doseq [piece pieces]
-                     (idx/update-index piece))
-                   (store/append-pieces pieces)))) ))
+
 
 (deftest test-cmd-to-pieces
   (testing ""
