@@ -6,6 +6,7 @@
             [imdb.boot :as b]
             [imdb.schema :as sc]
             [imdb.query :as query]
+            [clj-leveldb :as cl]
             )
   (:use [clojure.test]))
 
@@ -31,6 +32,11 @@
   (if-let [pieces (cmd/cmd-to-pieces cmd)]
     (tx/run-tx pieces handle-pieces) ))
 
+(defn replay!
+  []
+  (doseq [i (cl/iterator (b/get-state :log-db))]
+    (handle-pieces (second i))))
+
 (def schemas
   {:user {:name [:string :index :uniqure]
           :event [:string :index]
@@ -46,9 +52,13 @@
   (start! [this]
     (b/attach :schemas schemas)
     (b/attach :piece-name-ids (sc/store-piece-name-ids schemas))
+    (replay!)
     (println "starting imdb"))
   (stop! [this]
     (println "stopping imdb")))
+
+
+
 
 
 
@@ -109,6 +119,24 @@
       (start! imdb)
       (doseq [cmd cmds]
         (pub imdb cmd))
+      (is (= '(111113) (:idx (q imdb query-sample))))
+      (is (= '(111111) (:idx (q imdb query-sample1))))
+      (is (= '(111119 111112) (:idx (q imdb query-end-with))))
+      (stop! imdb))))
+
+
+(deftest test-replay
+  (testing ""
+    (let [cmds  test-data
+          imdb (SimpleImdb. schemas)]
+      (start! imdb)
+      (doseq [cmd cmds]
+        (pub imdb cmd))
+      (is (not (nil? (b/get-state ":user-:name-vidx"))))
+      (b/clear-index)
+      (is (nil? (b/get-state ":user-:name-vidx")))
+      (stop! imdb)
+      (start! imdb)
       (is (= '(111113) (:idx (q imdb query-sample))))
       (is (= '(111111) (:idx (q imdb query-sample1))))
       (is (= '(111119 111112) (:idx (q imdb query-end-with))))

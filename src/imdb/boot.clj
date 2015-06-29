@@ -23,7 +23,18 @@
   (swap! before-fs conj fstart)
   (swap! after-fs conj fstop))
 
-(defn- clear
+
+(defn clear-state
+  []
+  (alter-var-root #'state (constantly (atom {}))))
+
+(defn clear-index
+  []
+  (doseq [c @state]
+    (when (.endsWith (str (first c)) "idx")
+      (swap! state dissoc (first c)))))
+
+(defn clear
   []
   (alter-var-root #'state (constantly (atom {})))
   (alter-var-root #'after-fs (constantly (atom [])))
@@ -49,7 +60,7 @@
   (swap! after-fs conj f))
 
 (defn stop! []
-  (if-not (empty? @state)
+  (when-not (empty? @state)
     (reduce (fn [r f]
               (f state))
             state
