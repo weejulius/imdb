@@ -3,7 +3,8 @@
   (:require [imdb.index :as idx]
             [imdb.store :as store]
             [imdb.schema :as sc]
-            [imdb.cmd :as c]
+            [imdb.common :as comm :refer [in?]]
+            [imdb.boot :as b]
             [imdb.transaction :as tx])
   (:use [clojure.test]))
 
@@ -38,7 +39,8 @@
       (reduce (fn [r k]
                 (if k (-> r
                           (assoc
-                           (sc/piece-name-by-id entity-name (first k))
+                           (sc/piece-name-by-id (b/get-state :piece-name-ids)
+                                                entity-name (first k))
                            (second k)))))
               entity pieces))))
 
@@ -100,17 +102,17 @@
 ;;;; search firstly and merge the result
 
 
-(defn in?
-  "true if seq contains elm"
-  [seq elm]
-  (some #(= elm %) seq))
+
 
 (defmulti search "search the index"
   (fn [i r]
     (let [k (if (coll? i) (first i) i)
-          new(cond
-               (in? [:between :start-with :end-with :and :or :asc :>= :limit :count] k) k
-               (and (coll? i) (sc/piece-name-id k (second i)))  :index)]
+          new (cond
+                (in? [:between :start-with :end-with :and :or :asc :>= :limit :count] k) k
+                (and (coll? i) (sc/piece-name-id (b/get-state :piece-name-ids)
+                                                 k
+                                                 (second i)))
+                :index)]
       new)))
 
 (defmethod search :between [[k p] r]
@@ -139,6 +141,7 @@
   (count r))
 
 (defn proc-index
+  "process the index"
   [c]
   (let [entity-name (first c)
         k (second c)
@@ -178,7 +181,7 @@
     (concat v1 v2)))
 
 
-(defn q
+(defn query-index
   "query the index"
   [m]
   (let [query-clause (:query m)
@@ -191,63 +194,3 @@
        :idx idx
        :entities (map #(find-entity entity-name %)
                       idx)})))
-
-(def query-sample
-  {:entity :user
-   :query [:and
-           [:user :name [:between ["aname" "cname"]] ]
-           [:user :age [:>= 18]]]
-   :count true
-   :limit [2 3]} )
-
-(def query-sample1
-  {:entity :user
-   :query [:user :name [:between ["aname" "bname"]] :asc]
-   :count true
-   :limit [2 3]
-   })
-
-(def query-end-with
-  {:entity :user
-   :query [:user :name [:end-with "name"] :asc]
-   :count true
-   :limit [1 2]
-   })
-
-(deftest test-query
-  (testing ""
-    (let [cmds  [
-                 {:entity :user
-                  :event :change-name
-                  :eid 111119
-                  :date 1212121
-                  :age 12
-                  :name "dname"}
-                 {:entity :user
-                  :event :change-name
-                  :eid 111113
-                  :date 1212121
-                  :age 18
-                  :name "cfame"}
-                 {:entity :user
-                  :event :change-name
-                  :eid 111111
-                  :age 88
-                  :date 1212121
-                  :name "aname"}
-                 {:entity :user
-                  :event :change-name
-                  :age 3
-                  :eid 111112
-                  :date 1212121
-                  :name "bname"}
-                 ]]
-      (doseq [cmd cmds]
-        (c/pub cmd))
-      (is (= '(111113) (:idx (q query-sample))))
-      (is (= '(111111) (:idx (q query-sample1))))
-      (is (= '(111119 111112) (:idx (q query-end-with)))))))
-
-(q query-sample1)
-(q query-sample)
-(q query-end-with)

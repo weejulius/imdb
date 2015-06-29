@@ -72,13 +72,6 @@
     (is (= 3 (count (cmd-to-pieces cmd-example))))))
 
 
-(defn f->
-  [& fs]
-  (fn [i p]
-    (reduce (fn [ r f] (f r p))
-            i
-            fs)))
-
 
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)

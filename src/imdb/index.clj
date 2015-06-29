@@ -47,7 +47,7 @@
         entity-id (:eid piece)
         kindex (ref-kindex entity-name)
         id (:id piece)
-        piece-name-id (schema/piece-name-id entity-name (:key piece))
+        piece-name-id (schema/piece-name-id (b/get-state :piece-name-ids) entity-name (:key piece))
         tx-id (:tx-id piece)]
     (swap! kindex (fn [cur]
                     (update-in
@@ -85,7 +85,7 @@
   [piece]
   (let [entity-name (:entity piece)
         key (:key piece)
-        schema-def (schema/piece-schema-def entity-name key)]
+        schema-def (schema/piece-schema-def (b/get-state :schemas) entity-name key)]
     (if schema-def
       (insert-item-to-vindex piece))))
 

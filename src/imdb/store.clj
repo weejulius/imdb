@@ -1,6 +1,7 @@
 (ns ^{:doc "the store of pieces"}
   imdb.store
-  (:require [imdb.schema :as schema])
+  (:require [imdb.schema :as schema]
+            [imdb.boot :as b])
   (:use [clojure.test]))
 
 (def store (atom {}))
@@ -12,7 +13,7 @@
 (defn simpfy-piece
   "throw the unnessesaries"
   [piece]
-  [(schema/piece-name-id (:entity piece) (:key piece))
+  [(schema/piece-name-id (b/get-state :piece-name-ids) (:entity piece) (:key piece))
    (:val piece)])
 
 (defn append-piece
