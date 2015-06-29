@@ -3,11 +3,11 @@
 - [DONE] id creator for entity
 - get pieces id from kindex according to time
 - [DONE] log the transaction
-- build index from log
+- [DONE] build index from log
 - get entities id from vindex according to time
 - [DONE] acid impl
 - performance improvement
-- long,integer,date vindex
+- [DONE] long,integer,date vindex
 - live index
 - live cache
 - [DONE] range query
