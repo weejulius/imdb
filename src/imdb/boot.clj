@@ -64,7 +64,8 @@
     (reduce (fn [r f]
               (f state))
             state
-            @after-fs)))
+            @after-fs))
+  (clear))
 
 
 (defn only-refresh!

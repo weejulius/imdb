@@ -2,7 +2,7 @@
   (:require [clojure.test.check :as tc]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [imdb.cmd :as cmd]
+            [imdb.core :as core]
             [imdb.query :as q]
             [imdb.index :as idx]))
 
@@ -12,13 +12,13 @@
                  eid gen/int
                  age gen/int
                  name gen/string]
-                (cmd/pub {:entity :user
-                          :event event
-                          :age age
-                          :eid eid
-                          :date 1212
-                          :name name})))
-
+                (core/publish-cmd
+                 {:entity :user
+                  :event event
+                  :age age
+                  :eid eid
+                  :date 1212
+                  :name name})))
 #_(time (tc/quick-check 10000 pub-cmds))
 
 

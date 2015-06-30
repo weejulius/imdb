@@ -67,4 +67,4 @@
 #_(pub cmd-example)
 #_(q/find-entity :user 112122)
 #_(q/find-entity-by-index :user :name "new name")
-(str @store/store)
+;(str @store/store)

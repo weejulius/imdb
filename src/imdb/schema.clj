@@ -1,7 +1,7 @@
 (ns ^{:doc "the shema for each kind of entity"}
   imdb.schema
   (:require [imdb.boot :as b]
-            [clj-leveldb :as cl])
+            [imdb.protocol :as p])
   (:use [clojure.test]))
 
 
@@ -66,10 +66,10 @@
   [schemas]
   (let [key 10000
         db (b/get-state :schema-db)
-        piece-name-ids (cl/get db key)
+        piece-name-ids (get db key)
         piece-name-ids (gen-piece-name-id piece-name-ids schemas)]
     (when-not (empty? piece-name-ids)
-      (cl/put db key piece-name-ids))
+      (p/put! db key piece-name-ids))
     piece-name-ids))
 
 

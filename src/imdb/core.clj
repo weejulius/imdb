@@ -6,7 +6,7 @@
             [imdb.boot :as b]
             [imdb.schema :as sc]
             [imdb.query :as query]
-            [clj-leveldb :as cl]
+            [imdb.protocol :as p]
             )
   (:use [clojure.test]))
 
@@ -17,6 +17,7 @@
   (q [this clause] "query from db according to clause")
   (start! [this] "start the db")
   (stop! [this] "stop the db"))
+
 
 (defn handle-pieces
   [pieces]
@@ -34,8 +35,8 @@
 
 (defn replay!
   []
-  (doseq [i (cl/iterator (b/get-state :log-db))]
-    (handle-pieces (second i))))
+  (p/iterate! (b/get-state :log-db)
+              (fn [k v] (handle-pieces v))))
 
 (def schemas
   {:user {:name [:string :index :uniqure]

@@ -1,31 +1,42 @@
 (ns imdb.warmup
   (:require [imdb.boot :as b]
-            [clj-leveldb :as leveldb]
+            [imdb.store :as store]
+            [imdb.protocol :as p]
             [common.convert :as cvt]))
 
 (defn start-tx-db
   [state]
-  (b/attach :log-db (leveldb/create-db
-                     (b/get-state :tx-db-path "/tmp/tx-db10")
-                     {:key-encoder cvt/->bytes
-                      :val-encoder cvt/->bytes
-                      :key-decoder cvt/->long
-                      :val-decoder cvt/->data})))
+  (store/create-store :log-db
+                      (b/get-state :tx-db-path "/tmp/tx-db")
+                      {:key-encoder cvt/->bytes
+                       :val-encoder cvt/->bytes
+                       :key-decoder cvt/->long
+                       :val-decoder cvt/->data} ))
 
 (defn start-schema-db
   [state]
-  (b/attach :schema-db (leveldb/create-db
-                        (b/get-state :schema-db-path "/tmp/schema-db10")
-                        {:key-encoder cvt/->bytes
-                         :val-encoder cvt/->bytes
-                         :key-decoder cvt/->long
-                         :val-decoder cvt/->data})))
+  (store/create-store :schema-db
+                      (b/get-state :tx-db-path "/tmp/schema-db")
+                      {:key-encoder cvt/->bytes
+                       :val-encoder cvt/->bytes
+                       :key-decoder cvt/->long
+                       :val-decoder cvt/->data}))
+
+(defn start-pieces-db
+  [state]
+  (store/create-store :pieces-db
+                      (b/get-state :tx-db-path "/tmp/pieces-db")
+                      {:key-encoder cvt/->bytes
+                       :val-encoder cvt/->bytes
+                       :key-decoder cvt/->long
+                       :val-decoder cvt/->data}))
+
 
 
 (defn stop-db
   [key state]
   (when (b/get-state key)
-    (.close (b/get-state key))
+    (p/close! (b/get-state key))
     (b/dis-attach key)))
 
 
@@ -33,4 +44,5 @@
   (b/refresh!
    (fn []
      (b/add-lifecycle start-tx-db (partial stop-db :log-db))
-     (b/add-lifecycle start-schema-db (partial stop-db :schema-db)))))
+     (b/add-lifecycle start-schema-db (partial stop-db :schema-db))
+     (b/add-lifecycle start-pieces-db (partial stop-db :pieces-db)))))
