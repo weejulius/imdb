@@ -7,7 +7,7 @@
 (defn start-tx-db
   [state]
   (store/create-store :log-db
-                      (b/get-state :tx-db-path "/tmp/tx-db")
+                      (b/get-state :tx-db-path "/tmp/tx-db1")
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -16,7 +16,7 @@
 (defn start-schema-db
   [state]
   (store/create-store :schema-db
-                      (b/get-state :tx-db-path "/tmp/schema-db")
+                      (b/get-state :tx-db-path "/tmp/schema-db1")
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -25,7 +25,7 @@
 (defn start-pieces-db
   [state]
   (store/create-store :pieces-db
-                      (b/get-state :tx-db-path "/tmp/pieces-db")
+                      (b/get-state :tx-db-path "/tmp/pieces-db1")
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -40,8 +40,8 @@
     (b/dis-attach key)))
 
 
-(defn refresh []
-  (b/refresh!
+(defn start []
+  (b/start!
    (fn []
      (b/add-lifecycle start-tx-db (partial stop-db :log-db))
      (b/add-lifecycle start-schema-db (partial stop-db :schema-db))

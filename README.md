@@ -1,10 +1,21 @@
 # imdb
 
-A Clojure library designed to ... well, that part is up to you.
+imdb is short for immutable database, and it is designed for startup project.
+
+## Feature
+
+- schema free to change
+- immutable data
+- easy to use
+- easy to deploy
+- good performance
+
+
 
 ## Usage
 
-FIXME
+
+
 
 ## License
 

@@ -19,7 +19,7 @@
                   :eid eid
                   :date 1212
                   :name name})))
-#_(time (tc/quick-check 10000 pub-cmds))
+#_(time (tc/quick-check 1000 pub-cmds))
 
 
 (def query
@@ -29,7 +29,7 @@
 #_(time (tc/quick-check 100000 query))
 
 
-(q/find-entity :user 195)
+#_(q/find-entity :user 195)
 
 
 (def query-by-name

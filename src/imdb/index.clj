@@ -121,5 +121,5 @@
 #_(update-index piece-example)
 #_(val-kindex :user 112128)
 #_(val-vindex :user :event :change-name)
-@(ref-vindex :user :name)
-@(ref-kindex :user)
+#_(ref-vindex :user :name)
+#_(ref-kindex :user)

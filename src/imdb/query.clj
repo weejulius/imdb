@@ -92,7 +92,7 @@
                                   2 [[4 3] [5 4]]}
                                  nil)))))
 
-(find-entity :user 112121)
+#_(find-entity :user 112121)
 #_(find-entity-by-index :user :event :change-name)
 
 

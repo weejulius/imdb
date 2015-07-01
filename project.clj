@@ -8,6 +8,7 @@
                  [common-clj "1.0.0-SNAPSHOT"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [factual/clj-leveldb "0.1.1"]
+                 [org.mapdb/mapdb "2.0-beta1"]
                  [org.clojure/test.check "0.7.0"]
                  [it.unimi.dsi/fastutil "7.0.6"]]
   :repl-options {:init (load-file "src/imdb/warmup.clj")})

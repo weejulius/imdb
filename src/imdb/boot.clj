@@ -9,10 +9,11 @@
 
 
 (defn attach [k v]
-  (println "attaching >>>>> " k "  " v)
+  (println ">>>>>>>>>>>>>>>>>>>>>>>>>> " k )
   (swap! state assoc k v))
 
 (defn dis-attach [k]
+  (println "<<<<<<<<<<<<<<<<<<<<<<<<<<< " k)
   (swap! state dissoc k))
 
 (defn before! [f]
@@ -26,31 +27,37 @@
 
 (defn clear-state
   []
+  (println "**************** state ****************")
   (alter-var-root #'state (constantly (atom {}))))
 
 (defn clear-index
   []
+  (println "**************** index *****************")
   (doseq [c @state]
     (when (.endsWith (str (first c)) "idx")
       (swap! state dissoc (first c)))))
 
 (defn clear
   []
-  (alter-var-root #'state (constantly (atom {})))
-  (alter-var-root #'after-fs (constantly (atom [])))
-  (alter-var-root #'before-fs (constantly (atom []))))
+  (println "*************************************")
+  (alter-var-root #'state (constantly (atom {}))))
 
+
+(defn clear-lifecycle
+  []
+  (alter-var-root #'before-fs (constantly (atom [])))
+  (alter-var-root #'after-fs (constantly (atom []))))
 
 
 (defn start! [f]
-  (clear)
   (f)
   (println @before-fs)
   (println @after-fs)
   (reduce (fn [r f]
             (f state))
           state
-          @before-fs))
+          @before-fs)
+  (println "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"))
 
 (defn get-state
   ([k] (get @state k))
@@ -60,12 +67,12 @@
   (swap! after-fs conj f))
 
 (defn stop! []
-  (when-not (empty? @state)
+  (when-not (empty? @after-fs)
     (reduce (fn [r f]
               (f state))
             state
-            @after-fs))
-  (clear))
+            @after-fs)
+    (clear)))
 
 
 (defn only-refresh!
@@ -76,4 +83,4 @@
   [f]
   (stop!)
   (refresh)
-  (start! f))
+  (start! #(str "starting...")))

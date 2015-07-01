@@ -89,9 +89,9 @@
                            :sex [:string]}
                     :hello {:name [:string]}})
 
-(find-new-pieces schema-sample piece-name-ids-sample (atom 0))
-(find-new-pieces schema-sample nil (atom 0))
-(max-piece-id piece-name-ids-sample)
+#_(find-new-pieces schema-sample piece-name-ids-sample (atom 0))
+#_(find-new-pieces schema-sample nil (atom 0))
+#_(max-piece-id piece-name-ids-sample)
 
 (deftest test-init-schema
   (testing ""
