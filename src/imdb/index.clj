@@ -4,7 +4,8 @@
   (:require [imdb.schema :as schema]
             [pandect.core :refer [crc32 crc32-file ]]
             [common.component :as cmpt]
-            [imdb.boot :as b]))
+            [imdb.boot :as b]
+            [clojure.core.async :refer [chan >! go <!]]))
 
 
 (defn in?
@@ -37,26 +38,7 @@
   (let [ref (b/get-state  (str entity-name "-" key "-vidx"))]
     (if ref ref (init-vindex entity-name key))))
 
-(defn insert-to-kindex
-  "insert piece to k index, the data structure is
-   { eid { piece-name-id [[id  tx-id] ..]
-           piece-name-id1 [[id1 tx-id1] ..]
-         } "
-  [piece]
-  (let [entity-name (:entity piece)
-        entity-id (:eid piece)
-        kindex (ref-kindex entity-name)
-        id (:id piece)
-        piece-name-id (schema/piece-name-id (b/get-state :piece-name-ids) entity-name (:key piece))
-        tx-id (:tx-id piece)]
-    (swap! kindex (fn [cur]
-                    (update-in
-                     cur
-                     [entity-id piece-name-id]
-                     (fn [eindex item]
-                       (if eindex (conj eindex item)
-                           (sorted-set item)))
-                     [id tx-id])))))
+
 
 
 
@@ -81,6 +63,27 @@
       (swap! vindex (fn [cur]
                       (update-in cur [idx] conj [eid id tx-id]))))))
 
+(defn insert-to-kindex
+  "insert piece to k index, the data structure is
+   { eid { piece-name-id [[id  tx-id] ..]
+           piece-name-id1 [[id1 tx-id1] ..]
+         } "
+  [piece]
+  (let [entity-name (:entity piece)
+        entity-id (:eid piece)
+        kindex (ref-kindex entity-name)
+        id (:id piece)
+        piece-name-id (schema/piece-name-id (b/get-state :piece-name-ids) entity-name (:key piece))
+        tx-id (:tx-id piece)]
+    (swap! kindex (fn [cur]
+                    (update-in
+                     cur
+                     [entity-id piece-name-id]
+                     (fn [eindex item]
+                       (if eindex (conj eindex item)
+                           (sorted-set item)))
+                     [id tx-id])))))
+
 (defn insert-to-vindex
   [piece]
   (let [entity-name (:entity piece)
@@ -90,12 +93,25 @@
       (insert-item-to-vindex piece))))
 
 
+(def vindex-chan (chan))
+(def kindex-chan (chan))
+
 (defn update-index
   [piece]
-  (do (insert-to-kindex piece)
-      (insert-to-vindex piece)))
+  (go (>! kindex-chan piece)
+      (>! vindex-chan piece)))
 
+(defn listen-vindex-req
+  []
+  (go (while true
+        (let [piece (<! vindex-chan)]
+          (insert-to-vindex piece)))))
 
+(defn listen-kindex-req
+  []
+  (go (while true
+        (let [piece (<! kindex-chan)]
+          (insert-to-kindex piece)))))
 
 (defn val-kindex
   [entity-name entity-id]

@@ -2,12 +2,15 @@
   (:require [imdb.boot :as b]
             [imdb.store :as store]
             [imdb.protocol :as p]
+            [imdb.index :as idx]
             [common.convert :as cvt]))
+
+(def suffix "db4")
 
 (defn start-tx-db
   [state]
   (store/create-store :log-db
-                      (b/get-state :tx-db-path "/tmp/tx-db1")
+                      (b/get-state :tx-db-path (str "/tmp/tx-" suffix))
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -16,7 +19,7 @@
 (defn start-schema-db
   [state]
   (store/create-store :schema-db
-                      (b/get-state :tx-db-path "/tmp/schema-db1")
+                      (b/get-state :tx-db-path (str "/tmp/schema-" suffix))
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -25,7 +28,7 @@
 (defn start-pieces-db
   [state]
   (store/create-store :pieces-db
-                      (b/get-state :tx-db-path "/tmp/pieces-db1")
+                      (b/get-state :tx-db-path (str "/tmp/pieces-" suffix))
                       {:key-encoder cvt/->bytes
                        :val-encoder cvt/->bytes
                        :key-decoder cvt/->long
@@ -40,9 +43,17 @@
     (b/dis-attach key)))
 
 
+(defn prepare
+  []
+  (b/add-lifecycle start-tx-db (partial stop-db :log-db))
+  (b/add-lifecycle start-schema-db (partial stop-db :schema-db))
+  (b/add-lifecycle start-pieces-db (partial stop-db :pieces-db))
+  (b/before! (fn [state] (do (idx/listen-vindex-req)
+                             (idx/listen-kindex-req)
+                             (store/listen-store-req)))))
+
 (defn start []
-  (b/start!
-   (fn []
-     (b/add-lifecycle start-tx-db (partial stop-db :log-db))
-     (b/add-lifecycle start-schema-db (partial stop-db :schema-db))
-     (b/add-lifecycle start-pieces-db (partial stop-db :pieces-db)))))
+  (b/start! prepare))
+
+(defn refresh []
+  (b/start! prepare))

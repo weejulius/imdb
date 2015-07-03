@@ -10,5 +10,6 @@
                  [factual/clj-leveldb "0.1.1"]
                  [org.mapdb/mapdb "2.0-beta1"]
                  [org.clojure/test.check "0.7.0"]
-                 [it.unimi.dsi/fastutil "7.0.6"]]
+                 [it.unimi.dsi/fastutil "7.0.6"]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]]
   :repl-options {:init (load-file "src/imdb/warmup.clj")})

@@ -4,7 +4,7 @@
             [imdb.boot :as b]
             [imdb.protocol :as p]
             [clj-leveldb :as cl]
-            )
+            [clojure.core.async :refer [chan go >! <!]])
   (:use [clojure.test])
   (:import [org.mapdb DBMaker DB BTreeKeySerializer]))
 
@@ -83,12 +83,19 @@
           (:id piece)
           (simpfy-piece piece)))
 
+
+(def store-chan (chan))
+
 (defn append-pieces
   [pieces]
   (doseq [piece pieces]
-    (append-piece piece)))
+    (go (>! store-chan piece))))
 
-
+(defn listen-store-req
+  []
+  (go (while true
+        (let [piece (<! store-chan)]
+          (append-piece piece)))))
 
 (defn find-by-id
   "find piece by id"

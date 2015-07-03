@@ -16,3 +16,7 @@
 # 6.24
 - remove value in the index as the value is the key now
 - add perf test, the result pub:5000/s query:50000/s query-vindex:10000/s
+
+
+# 7.2
+- core.async to commucate

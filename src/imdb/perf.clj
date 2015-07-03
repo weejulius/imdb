@@ -19,6 +19,7 @@
                   :eid eid
                   :date 1212
                   :name name})))
+
 #_(time (tc/quick-check 1000 pub-cmds))
 
 
