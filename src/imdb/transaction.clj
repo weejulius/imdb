@@ -32,26 +32,30 @@
 
 (defn log-tx
   "log the transcaction at the beginning, but now it is not nessesary"
-  [tx-id pieces])
+  [log-db]
+  (fn [tx-id pieces]))
 
 (defn log-tx-done
   "log the done of the transaction"
-  [tx-id pieces]
-  (log/log-tx tx-id pieces))
+  [log-db]
+  (fn [tx-id pieces]
+    (log/log-tx log-db tx-id pieces)))
 
 (defn mark-tx
-  [tx-id pieces]
-  (log-tx tx-id pieces)
-  (swap! tx (fn [c]
-              (assoc c tx-id 0))))
+  [log-tx]
+  (fn[ tx-id pieces]
+    (log-tx tx-id pieces)
+    (swap! tx (fn [c]
+                (assoc c tx-id 0)))))
 
 (defn unmark-tx
   "unmark the transaction when it is done
    TODO: it should be atomic, but now it is not"
-  [tx-id pieces]
-  (log-tx-done tx-id pieces)
-  (swap! tx (fn [c]
-              (dissoc c tx-id))))
+  [log-tx-done]
+  (fn [tx-id pieces]
+    (log-tx-done tx-id pieces)
+    (swap! tx (fn [c]
+                (dissoc c tx-id)))))
 
 (defn tx-done?
   "whether the tx the piece tied to is done?"
@@ -66,12 +70,12 @@
 
 (defn run-tx
   "run a transaction"
-  [pieces f]
+  [pieces log-db f]
   (let [tx-id (gen-tx-id)
         pieces (tie-to-tx tx-id pieces)]
-    (mark-tx tx-id pieces)
+    ((mark-tx (log-tx log-db)) tx-id pieces)
     (f pieces)
-    (unmark-tx tx-id pieces)))
+    ((unmark-tx (log-tx-done log-db)) tx-id pieces)))
 
 (def piece-example
   {:eid 1212122

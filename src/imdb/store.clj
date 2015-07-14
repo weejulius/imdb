@@ -1,7 +1,6 @@
 (ns ^{:doc "the store of pieces"}
   imdb.store
   (:require [imdb.schema :as schema]
-            [imdb.boot :as b]
             [imdb.protocol :as p]
             [clj-leveldb :as cl]
             [clojure.core.async :refer [chan go >! <!]])
@@ -41,10 +40,10 @@
     (.close db)))
 
 
-(defn create-store
-  [store-name db-path decodes]
-  (b/attach store-name (LevelStore. (cl/create-db db-path
-                                                  decodes))))
+(defn ->store
+  [db-path decodes]
+  (LevelStore.
+   (cl/create-db db-path decodes)))
 
 (defn create-mapdb-store
   [store-name db-path decodes]
@@ -52,76 +51,83 @@
         map (.makeOrGet (doto (.treeMapCreate db (str store-name))
                           (.keySerializer BTreeKeySerializer/LONG)))
         store (MapdbStore. db map decodes)]
-    (b/attach store-name store)
     store))
 
 (deftest test-mapdbstore
   (testing ""
-    (let [store (create-store :test "/tmp/testdb3" {1 1})]
+    (let [store (->store  "/tmp/testdb3" {1 1})]
       (p/put! store 1 {:hello 1})
       (is (= {:hello 1} (p/get! store 1)))
       (is (nil? (p/iterate! store println))))))
 
 
 
-(defn ref-store
-  [entity-name]
-  (b/get-state :pieces-db))
 
-(defn simpfy-piece
+(defn piece->simple-piece
   "throw away the unnessesaries"
-  [piece]
-  [(schema/piece-name-id
-    (b/get-state :piece-name-ids)
-    (:entity piece)
-    (:key piece))
-   (:val piece)])
-
-(defn append-piece
-  [piece]
-  (p/put! (ref-store (:entity piece))
-          (:id piece)
-          (simpfy-piece piece)))
-
+  [piece-name->id]
+  (fn [piece]
+    [(piece-name->id (:entity piece) (:key piece))
+     (:val piece)] ))
 
 (def store-chan (chan))
 
-(defn append-pieces
+(defn pieces->store!
   [pieces]
   (doseq [piece pieces]
     (go (>! store-chan piece))))
 
+(defn simple-piece->store!
+  [store]
+  (fn [simple-piece]
+    (store (first simple-piece)
+           simple-piece)))
+
 (defn listen-store-req
-  []
+  [piece->simple-piece simple-piece->store]
   (go (while true
         (let [piece (<! store-chan)]
-          (append-piece piece)))))
+          (-> piece
+              piece->simple-piece
+              simple-piece->store)))))
 
-(defn find-by-id
+(defn id->piece
   "find piece by id"
-  [entity-name id]
-  (p/get! (ref-store entity-name) id))
+  [store->query]
+  (fn [entity-name id]
+    (store->query entity-name id)))
 
 
-(defn find-by-ids
+(defn ids->pieces
   "find pieces by ids"
-  [entity-name ids]
-  (keep #(find-by-id entity-name %) ids))
+  [id->piece]
+  (fn [entity-name ids]
+    (keep #(id->piece entity-name %) ids)))
 
 
 (def piece-example
-  {:eid 112126, :entity :user, :id 14345969392870000, :key :event, :val :change-name, :date 1212121})
+  {:eid 112126,
+   :entity :user,
+   :id 14345969392870000,
+   :key :event,
+   :val :change-name,
+   :date 1212121})
 
 (def pieces-example
-  '({:eid 112126, :entity :user, :id 14345969392870000, :key :event, :val :change-name, :date 1212121}
-    {:eid 112126, :entity :user, :id 14345969392890000, :key :name, :val "hello", :date 1212121}))
+  '({:eid 112126,
+     :entity :user,
+     :id 14345969392870000,
+     :key :event,
+     :val :change-name,
+     :date 1212121}
+
+    {:eid 112126,
+     :entity :user,
+     :id 14345969392890000,
+     :key :name,
+     :val "hello",
+     :date 1212121}))
 
 (deftest test-simply-piece
   (testing ""
-    (is (= [2 :change-name] (simpfy-piece piece-example)))))
-
-#_(append-piece piece-example)
-#_(append-pieces pieces-example)
-#_(find-by-id :user 14345969392870000)
-#_(find-by-id :user 14345969392890000)
-#_(find-by-ids :user #{14345969392870000 14345969392860000})
+    (is (= [2 :change-name] ((piece->simple-piece (fn [p] 2)) piece-example)))))

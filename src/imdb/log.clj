@@ -9,11 +9,5 @@
 
 
 (defn log-tx
-  [tx-id pieces]
-  (p/put! (b/get-state :log-db) tx-id pieces))
-
-
-(deftest test-log-tx
-  (testing ""
-    (log-tx 121 {})
-    (is (= {} (get (b/get-state :log-db) 121)))))
+  [db tx-id pieces]
+  (p/put! db tx-id pieces))

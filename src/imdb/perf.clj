@@ -12,7 +12,7 @@
                  eid gen/int
                  age gen/int
                  name gen/string]
-                (core/publish-cmd
+                (core/cmd->pub
                  {:entity :user
                   :event event
                   :age age
@@ -25,7 +25,7 @@
 
 (def query
   (prop/for-all [eid gen/int]
-                (or (q/find-entity :user eid) true) ))
+                (or (q/entity-id->entity :user eid) true) ))
 
 #_(time (tc/quick-check 100000 query))
 
@@ -35,7 +35,7 @@
 
 (def query-by-name
   (prop/for-all [name gen/string]
-                (or (q/find-entity-by-index :user :name name) true)))
+                (or (q/piece-value->entities :user :name name) true)))
 
 
 #_(time (tc/quick-check 13000 query-by-name))
@@ -43,7 +43,7 @@
 
 (def query-by-age
   (prop/for-all [age gen/int]
-                (or (q/find-entity-by-index :user :age age) true)))
+                (or (q/piece-value->entities :user :age age) true)))
 
 #_(time (tc/quick-check 13000 query-by-age))
 

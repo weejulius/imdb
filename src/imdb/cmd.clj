@@ -4,6 +4,7 @@
             [imdb.index :as idx]
             [imdb.id-creator :as idc]
             [imdb.store :as store]
+            [imdb.common :as comm]
             [imdb.transaction :as tx])
   (:use [clojure.test]))
 
@@ -29,17 +30,12 @@
   [entity-name]
   (idc/gen-id-by-time))
 
-(defn in?
-  "true if seq contains elm"
-  [seq elm]
-  (some #(= elm %) seq))
-
 (defn mk-piece
   "make the piece"
   [entity-name entity-id kv]
   (let [k (first kv)
         v (second kv)]
-    (if (not (in? [:entity :eid] k))
+    (if (not (comm/in? [:entity :eid] k))
       {:eid entity-id
        :entity entity-name
        :id (gen-piece-id entity-name)
