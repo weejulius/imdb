@@ -8,7 +8,8 @@
             [imdb.query :as query]
             [imdb.protocol :as p]
             [imdb.warmup :as warmup])
-  (:use [clojure.test]))
+  (:use [clojure.test]
+        [imdb.common]))
 
 
 (defprotocol Imdb
@@ -27,12 +28,19 @@
       (idx/piece->make-index! piece))
     (store/pieces->store! pieces)))
 
+(cur log-tx tx/log-tx (b/get-state :log-db))
+(cur log-tx-done tx/log-tx-done (b/get-state :log-db))
+(cur mark-tx tx/mark-tx log-tx)
+(cur unmark-tx tx/unmark-tx log-tx-done)
+(cur run-tx tx/run-tx mark-tx unmark-tx)
 
 (defn cmd->pub
   "the client api used to send cmd to server"
   [cmd]
-  (if-let [pieces (cmd/cmd-to-pieces cmd)]
-    (tx/run-tx pieces (b/get-state :log-db) pieces->handle!) ))
+  (when-let [pieces (cmd/cmd-to-pieces cmd)]
+    (run-tx
+     pieces
+     pieces->handle!) ))
 
 (defn replay!
   [log-db]
@@ -66,49 +74,55 @@
   (let [ref (b/get-state  (str entity-name "-" key "-vidx"))]
     (if ref ref (init-vindex entity-name key))))
 
+(cur piece-name->id sc/piece-name->id (b/get-state :piece-name-ids))
+(cur id->piece store/id->piece (fn [entity-name id]
+                                 (p/get! (b/get-state :pieces-db) id)))
+
+(cur ids->pieces store/ids->pieces id->piece)
+(cur entity-id->kindex idx/entity-id->kindex ref-kindex)
+(cur entity-id->pieces query/entity-id->pieces entity-id->kindex ids->pieces)
+(cur pieces->entity query/pieces->entity piece-name->id)
+(cur entity-id->entity query/entity-id->entity entity-id->pieces pieces->entity)
+(cur vindex->entities query/vindex->entities entity-id->entity)
+(cur query->entities query/query->entities vindex->entities
+     {:piece-name->id piece-name->id
+      :piece-name->vindex ref-vindex})
+
 
 (defn qq
   [clause]
-  (query/query->entities
-   (query/vindex->entities
-    (query/entity-id->entity
-     (query/entity-id->pieces
-      (idx/entity-id->kindex ref-kindex)
-      (store/ids->pieces
-       (store/id->piece (fn [entity-name id]
-                          (p/get! (b/get-state :pieces-db) id)))))
-     (query/pieces->entity (sc/piece-name->id (b/get-state :piece-name-ids)))))
-   {:piece-name->id (sc/piece-name->id (b/get-state :piece-name-ids))
-    :piece-name->vindex ref-vindex}))
+  (query->entities clause))
 
 
 (defn piece-name-ids
   [schemas schema-db origin-ids]
-  ((sc/pieces-name-ids->store
-    (sc/schema->piece-name-ids
-     origin-ids
-     (sc/schema->pieces-without-id origin-ids))
-    (fn [v]
-      (p/put! schema-db 10000  v)))
-   schemas))
+  (cur schema->pieces-without-id sc/schema->pieces-without-id origin-ids)
+  (cur schema->piece-name-ids sc/schema->piece-name-ids origin-ids schema->pieces-without-id)
+  (cur pieces-name-ids->store
+       sc/pieces-name-ids->store
+       schema->piece-name-ids
+       (fn [v]
+         (p/put! schema-db 10000  v)))
+  (pieces-name-ids->store schemas))
+
 
 
 (defn open-listeners
   [schemas]
-  (do (idx/listen-vindex-req
-       (idx/piece->try-insert-to-vindex
-        (sc/piece-name->schema-def schemas)
-        (idx/piece->insert-to-vindex ref-vindex)))
-      (idx/listen-kindex-req
-       (idx/piece->insert-to-kindex
-        ref-kindex
-        (sc/piece-name->id (b/get-state :piece-name-ids))))
-      (store/listen-store-req
-       (store/piece->simple-piece (sc/piece-name->id (b/get-state :piece-name-ids)))
-       (store/simple-piece->store! (fn [k v]
-                                     (p/put! (b/get-state :pieces-db)
-                                             k
-                                             v))))))
+  (cur piece->insert-to-vindex idx/piece->insert-to-vindex ref-vindex)
+  (cur piece-name->schema-def sc/piece-name->schema-def ref-vindex)
+  (cur piece->try-insert-to-vindex idx/piece->try-insert-to-vindex
+       piece-name->schema-def
+       piece->insert-to-vindex)
+  (cur piece->insert-to-kindex idx/piece->insert-to-kindex ref-kindex piece-name->id)
+  (cur piece->simple-piece store/piece->simple-piece piece-name->id)
+  (cur simple-piece->store! store/simple-piece->store! (fn [k v]
+                                                         (p/put! (b/get-state :pieces-db)
+                                                                 k
+                                                                 v)))
+  (idx/listen-vindex-req piece->try-insert-to-vindex)
+  (idx/listen-kindex-req piece->insert-to-kindex)
+  (store/listen-store-req piece->simple-piece simple-piece->store!))
 
 (defrecord SimpleImdb [schemas]
   Imdb

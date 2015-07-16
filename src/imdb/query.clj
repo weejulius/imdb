@@ -6,7 +6,8 @@
             [imdb.common :as comm :refer [in?]]
             [imdb.boot :as b]
             [imdb.transaction :as tx])
-  (:use [clojure.test]))
+  (:use [clojure.test]
+        [imdb.common]))
 
 
 (defn- kindex->filter
@@ -22,36 +23,34 @@
                (recur (rest groups))))))
        kindex))
 
-(defn entity-id->pieces
+(defcurrable entity-id->pieces
   "get the pieces id from kindex and fetch them"
-  [entity-id->kindex ids->pieces]
-  (fn [entity-name id]
-    (if-let [kindex (entity-id->kindex entity-name id)]
-      (ids->pieces entity-name (kindex->filter kindex nil)))))
+  [entity-name id] [entity-id->kindex ids->pieces]
+  (if-let [kindex (entity-id->kindex entity-name id)]
+    (ids->pieces entity-name
+                 (kindex->filter kindex nil))))
 
 
-(defn pieces->entity
+(defcurrable pieces->entity
   "cast from pieces to entity"
-  [piece-id->name]
-  (fn [entity-name entity-id pieces]
-    (if (not (empty? pieces))
-      (let [entity {:eid entity-id
-                    :entity entity-name}]
-        (reduce (fn [r k]
-                  (if k
-                    (assoc
-                     r
-                     (piece-id->name entity-name (first k))
-                     (second k))))
-                entity pieces)))))
+  [entity-name entity-id pieces] [piece-id->name]
+  (when-not (empty? pieces)
+    (let [entity {:eid entity-id
+                  :entity entity-name}]
+      (reduce (fn [r k]
+                (if k
+                  (assoc
+                   r
+                   (piece-id->name entity-name (first k))
+                   (second k))))
+              entity pieces))))
 
 
-(defn entity-id->entity
-  [entity-id->pieces pieces->entity]
-  (fn [entity-name eid]
-    (pieces->entity entity-name
-                    eid
-                    (entity-id->pieces entity-name eid))))
+(defcurrable entity-id->entity
+  "return entity by entity id"
+  [entity-name eid] [entity-id->pieces pieces->entity]
+  (->> (entity-id->pieces entity-name eid)
+       (pieces->entity entity-name eid)))
 
 
 
@@ -72,22 +71,22 @@
     (is (= '(121) (vindex->entity-ids [[121 1111 121 121]])))))
 
 ;; a simple usage of index
-(defn piece-value->entities
-  [piece-value->vindex entity-id->entity]
-  (fn [entity-name key val]
-    (let [index (piece-value->vindex  entity-name key val)
-          entities-id  (vindex->entity-ids index)]
-      (if-not (empty? entities-id)
-        (map #(entity-id->entity entity-name %)
-             entities-id)))))
-
-
-(defn vindex->entities
-  [entity-id->entity]
-  (fn [entity-name vindex]
-    (if-let [entities-id  (vindex->entity-ids vindex)]
+(defcurrable piece-value->entities
+  "search the entities matched by piece value"
+  [entity-name key val] [piece-value->vindex entity-id->entity]
+  (let [index (piece-value->vindex  entity-name key val)
+        entities-id  (vindex->entity-ids index)]
+    (when-not (empty? entities-id)
       (map #(entity-id->entity entity-name %)
            entities-id))))
+
+
+(defcurrable vindex->entities
+  "return entities by the provided vindex"
+  [entity-name vindex] [entity-id->entity]
+  (when-let [entities-id  (vindex->entity-ids vindex)]
+    (map #(entity-id->entity entity-name %)
+         entities-id)))
 
 (deftest test-filter-pieces
   (testing ""
@@ -184,16 +183,15 @@
     (concat v1 v2)))
 
 
-(defn query->entities
+(defcurrable query->entities
   "query the entities"
-  [vindex->entities o]
-  (fn [clause]
-    (let [query-clause (:query clause)
-          entity-name (:entity clause)
-          idx (search query-clause nil o)
-          cnt (search [:count] idx o)
-          idx (search [:limit (:limit clause)] idx o)]
-      (when idx
-        {:cnt cnt
-         :idx idx
-         :entities (vindex->entities entity-name idx)}))))
+  [clause]  [vindex->entities o]
+  (let [query-clause (:query clause)
+        entity-name (:entity clause)
+        idx (search query-clause nil o)
+        cnt (search [:count] idx o)
+        idx (search [:limit (:limit clause)] idx o)]
+    (when idx
+      {:cnt cnt
+       :idx idx
+       :entities (vindex->entities entity-name idx)})))

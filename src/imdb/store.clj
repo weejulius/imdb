@@ -4,11 +4,9 @@
             [imdb.protocol :as p]
             [clj-leveldb :as cl]
             [clojure.core.async :refer [chan go >! <!]])
-  (:use [clojure.test])
+  (:use [clojure.test]
+        [imdb.common])
   (:import [org.mapdb DBMaker DB BTreeKeySerializer]))
-
-
-
 
 (defrecord LevelStore [db]
   p/IStore
@@ -60,15 +58,11 @@
       (is (= {:hello 1} (p/get! store 1)))
       (is (nil? (p/iterate! store println))))))
 
-
-
-
-(defn piece->simple-piece
+(defcurrable piece->simple-piece
   "throw away the unnessesaries"
-  [piece-name->id]
-  (fn [piece]
-    [(piece-name->id (:entity piece) (:key piece))
-     (:val piece)] ))
+  [piece] [piece-name->id]
+  [(piece-name->id (:entity piece) (:key piece))
+   (:val piece)])
 
 (def store-chan (chan))
 
@@ -77,11 +71,11 @@
   (doseq [piece pieces]
     (go (>! store-chan piece))))
 
-(defn simple-piece->store!
-  [store]
-  (fn [simple-piece]
-    (store (first simple-piece)
-           simple-piece)))
+(defcurrable simple-piece->store!
+  "store the simple piece"
+  [simple-piece] [store]
+  (store (first simple-piece)
+         simple-piece))
 
 (defn listen-store-req
   [piece->simple-piece simple-piece->store]
@@ -91,18 +85,16 @@
               piece->simple-piece
               simple-piece->store)))))
 
-(defn id->piece
+(defcurrable id->piece
   "find piece by id"
-  [store->query]
-  (fn [entity-name id]
-    (store->query entity-name id)))
+  [entity-name id] [store->query]
+  (store->query entity-name id))
 
 
-(defn ids->pieces
+(defcurrable ids->pieces
   "find pieces by ids"
-  [id->piece]
-  (fn [entity-name ids]
-    (keep #(id->piece entity-name %) ids)))
+  [entity-name ids] [id->piece]
+  (keep #(id->piece entity-name %) ids))
 
 
 (def piece-example
@@ -130,4 +122,7 @@
 
 (deftest test-simply-piece
   (testing ""
-    (is (= [2 :change-name] ((piece->simple-piece (fn [p] 2)) piece-example)))))
+    (is (= [2 :change-name]
+           (<< piece->simple-piece
+               (fn [p y] 2)
+               piece-example)))))

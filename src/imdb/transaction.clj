@@ -2,7 +2,8 @@
   imdb.transaction
   (:require [imdb.id-creator :as idc]
             [imdb.log :as log])
-  (:use [clojure.test]))
+  (:use [clojure.test]
+        [imdb.common]))
 
 ;; # Flow
 ;; 1. (async) log the transaction in order to replay the logs to rebuild index
@@ -30,29 +31,29 @@
 
 (def tx (atom {}))
 
-(defn log-tx
+(defcurrable log-tx
   "log the transcaction at the beginning, but now it is not nessesary"
-  [log-db]
-  (fn [tx-id pieces]))
+  [tx-id pieces] [log-db]
+  [])
 
-(defn log-tx-done
+(defcurrable log-tx-done
   "log the done of the transaction"
-  [log-db]
-  (fn [tx-id pieces]
-    (log/log-tx log-db tx-id pieces)))
+  [tx-id pieces] [log-db]
+  (log/log-tx log-db tx-id pieces))
 
-(defn mark-tx
-  [log-tx]
-  (fn[ tx-id pieces]
+(defcurrable mark-tx
+  "mark the transaction is started"
+  [tx-id pieces] [log-tx]
+  (do
     (log-tx tx-id pieces)
     (swap! tx (fn [c]
                 (assoc c tx-id 0)))))
 
-(defn unmark-tx
+(defcurrable unmark-tx
   "unmark the transaction when it is done
    TODO: it should be atomic, but now it is not"
-  [log-tx-done]
-  (fn [tx-id pieces]
+  [tx-id pieces] [log-tx-done]
+  (do
     (log-tx-done tx-id pieces)
     (swap! tx (fn [c]
                 (dissoc c tx-id)))))
@@ -68,14 +69,14 @@
     (map #(assoc % :tx-id tx-id) pieces)
     (assoc pieces :tx-id tx-id)))
 
-(defn run-tx
+(defcurrable run-tx
   "run a transaction"
-  [pieces log-db f]
+  [pieces f] [mark-tx unmark-tx]
   (let [tx-id (gen-tx-id)
         pieces (tie-to-tx tx-id pieces)]
-    ((mark-tx (log-tx log-db)) tx-id pieces)
+    (mark-tx tx-id pieces)
     (f pieces)
-    ((unmark-tx (log-tx-done log-db)) tx-id pieces)))
+    (unmark-tx tx-id pieces)))
 
 (def piece-example
   {:eid 1212122
