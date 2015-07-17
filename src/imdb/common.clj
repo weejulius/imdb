@@ -14,7 +14,7 @@
   `(defn ~name ~doc ~p1 (fn ~p ~body)))
 
 (defmacro cur
-  [name  f & p]
+  [name f & p]
   `(def ~name (~f ~@p)))
 
 

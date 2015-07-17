@@ -48,8 +48,9 @@
 
 (defcurrable  schema->pieces-without-id
   "find out the pieces which does not have id"
-  [schemas] [piece-name-ids]
-  (let [max-id (atom (piece-ids->max-id piece-name-ids))]
+  [schemas] [get-piece-name-ids]
+  (let [piece-name-ids (get-piece-name-ids)
+        max-id (atom (piece-ids->max-id piece-name-ids))]
     (apply concat (keep (fn [[k v]]
                           (keep (fn [[k1 v1]]
                                   (if (nil? (get-in piece-name-ids [k k1]))
@@ -62,12 +63,12 @@
 
 (defcurrable schema->piece-name-ids
   "populate the id for the pieces does not have and return all the id"
-  [schemas] [origin-piece-name-ids schema->pieces-without-id]
+  [schemas] [get-origin-piece-name-ids schema->pieces-without-id]
   (let [new-pieces (schema->pieces-without-id schemas)]
     (reduce #(assoc-in %1
                        [(first %2) (second %2)]
                        (nth %2 2))
-            origin-piece-name-ids
+            (get-origin-piece-name-ids)
             new-pieces)))
 
 (defcurrable pieces-name-ids->store

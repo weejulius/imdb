@@ -77,7 +77,7 @@
   (store (first simple-piece)
          simple-piece))
 
-(defn listen-store-req
+(defn write-store-channel
   [piece->simple-piece simple-piece->store]
   (go (while true
         (let [piece (<! store-chan)]

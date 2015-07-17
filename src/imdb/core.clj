@@ -20,7 +20,6 @@
   (stop! [this] "stop the db"))
 
 
-
 (defn pieces->handle!
   [pieces]
   (do
@@ -28,26 +27,13 @@
       (idx/piece->make-index! piece))
     (store/pieces->store! pieces)))
 
-(cur log-tx tx/log-tx #(b/get-state :log-db))
-(cur log-tx-done tx/log-tx-done #(b/get-state :log-db))
-(cur mark-tx tx/mark-tx log-tx)
-(cur unmark-tx tx/unmark-tx log-tx-done)
-(cur run-tx tx/run-tx mark-tx unmark-tx)
 
-(defn cmd->pub
-  "the client api used to send cmd to server"
-  [cmd]
-  (when-let [pieces (cmd/cmd-to-pieces cmd)]
-    (run-tx
-     pieces
-     pieces->handle!) ))
+
 
 (defn replay!
   [log-db]
   (p/iterate! log-db
               (fn [k v] (pieces->handle! v))))
-
-
 
 
 (defn init-kindex
@@ -74,42 +60,45 @@
   (let [ref (b/get-state  (str entity-name "-" key "-vidx"))]
     (if ref ref (init-vindex entity-name key))))
 
-(cur piece-name->id sc/piece-name->id #(b/get-state :piece-name-ids))
-(cur id->piece store/id->piece (fn [entity-name id]
-                                 (p/get! (b/get-state :pieces-db) id)))
+(defn cmd->pub
+  "the client api used to send cmd to server"
+  [run-tx cmd]
+  (when-let [pieces (cmd/cmd-to-pieces cmd)]
+    (run-tx pieces pieces->handle!) ))
 
-(cur ids->pieces store/ids->pieces id->piece)
-(cur entity-id->kindex idx/entity-id->kindex ref-kindex)
-(cur entity-id->pieces query/entity-id->pieces entity-id->kindex ids->pieces)
-(cur pieces->entity query/pieces->entity piece-name->id)
-(cur entity-id->entity query/entity-id->entity entity-id->pieces pieces->entity)
-(cur vindex->entities query/vindex->entities entity-id->entity)
-(cur query->entities query/query->entities vindex->entities
-     {:piece-name->id piece-name->id
-      :piece-name->vindex ref-vindex})
+(defn inject-dependencies
+  []
+  (cur log-tx tx/log-tx #(b/get-state :log-db))
+  (cur log-tx-done tx/log-tx-done #(b/get-state :log-db))
+  (cur mark-tx tx/mark-tx log-tx)
+  (cur unmark-tx tx/unmark-tx log-tx-done)
+  (cur run-tx tx/run-tx mark-tx unmark-tx)
+  (cur piece-name->id sc/piece-name->id #(b/get-state :piece-name-ids))
+  (cur id->piece store/id->piece (fn [entity-name id]
+                                   (p/get! (b/get-state :pieces-db) id)))
 
+  (cur ids->pieces store/ids->pieces id->piece)
+  (cur entity-id->kindex idx/entity-id->kindex ref-kindex)
+  (cur entity-id->pieces query/entity-id->pieces entity-id->kindex ids->pieces)
+  (cur pieces->entity query/pieces->entity piece-name->id)
+  (cur entity-id->entity query/entity-id->entity entity-id->pieces pieces->entity)
+  (cur vindex->entities query/vindex->entities entity-id->entity)
+  (cur query->entities query/query->entities vindex->entities
+       {:piece-name->id piece-name->id
+        :piece-name->vindex ref-vindex})
 
-(defn qq
-  [clause]
-  (query->entities clause))
+  (cur schema->pieces-without-id sc/schema->pieces-without-id #(b/get-state :piece-name-ids))
+  (cur schema->piece-name-ids sc/schema->piece-name-ids
+       #(b/get-state :piece-name-ids)
+       schema->pieces-without-id)
 
-
-(defn piece-name-ids
-  [schemas schema-db origin-ids]
-  (cur schema->pieces-without-id sc/schema->pieces-without-id origin-ids)
-  (cur schema->piece-name-ids sc/schema->piece-name-ids origin-ids schema->pieces-without-id)
   (cur pieces-name-ids->store
        sc/pieces-name-ids->store
        schema->piece-name-ids
        (fn [v]
-         (p/put! schema-db 10000  v)
+         (-> (b/get-state :schema-db)
+             (p/put! 10000 v))
          v))
-  (pieces-name-ids->store schemas))
-
-
-
-(defn open-listeners
-  [schemas]
   (cur piece->insert-to-vindex idx/piece->insert-to-vindex ref-vindex)
   (cur piece-name->schema-def sc/piece-name->schema-def ref-vindex)
   (cur piece->try-insert-to-vindex idx/piece->try-insert-to-vindex
@@ -120,10 +109,23 @@
   (cur simple-piece->store! store/simple-piece->store! (fn [k v]
                                                          (p/put! (b/get-state :pieces-db)
                                                                  k
-                                                                 v)))
-  (idx/listen-vindex-req piece->try-insert-to-vindex)
-  (idx/listen-kindex-req piece->insert-to-kindex)
-  (store/listen-store-req piece->simple-piece simple-piece->store!))
+                                                                 v))))
+
+(defn qq
+  [clause]
+  (query->entities clause))
+
+
+(defn piece-name-ids
+  [schemas schema-db origin-ids]
+  (pieces-name-ids->store schemas))
+
+
+(defn setup-channels
+  [schemas]
+  (idx/build-vindex-channel piece->try-insert-to-vindex)
+  (idx/build-kindex-channel piece->insert-to-kindex)
+  (store/write-store-channel piece->simple-piece simple-piece->store!))
 
 (defn attach-schema-db
   [schemas]
@@ -135,12 +137,13 @@
 (defrecord SimpleImdb [schemas]
   Imdb
   (pub [this cmd]
-    (cmd->pub cmd))
+    (cmd->pub run-tx cmd))
   (q [this clause]
     (qq clause))
   (start! [this]
+    (inject-dependencies)
     (warmup/start-dbs)
-    (open-listeners schemas)
+    (setup-channels schemas)
     (b/attach :schemas schemas)
     (attach-schema-db schemas)
     (replay! (b/get-state :log-db))
@@ -222,7 +225,7 @@
       (b/clear-index)
       (doseq [cmd cmds]
         (pub imdb cmd))
-      (Thread/sleep 200)
+      (Thread/sleep 1000)
       (is (= '(111113) (:idx (q imdb query-sample))))
       (is (= '(111111) (:idx (q imdb query-sample1))))
       (is (= '(111119 111112) (:idx (q imdb query-end-with))))

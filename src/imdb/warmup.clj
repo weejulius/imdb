@@ -6,7 +6,7 @@
             [imdb.schema :as schema]
             [common.convert :as cvt]))
 
-(def suffix "db3")
+(def suffix "db6")
 
 (defn start-tx-db
   []

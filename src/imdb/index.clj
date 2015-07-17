@@ -68,13 +68,13 @@
   (go (>! kindex-chan piece)
       (>! vindex-chan piece)))
 
-(defn listen-vindex-req
+(defn build-vindex-channel
   [piece->try-insert-to-vindex]
   (go (while true
         (some-> (<! vindex-chan)
                 piece->try-insert-to-vindex))))
 
-(defn listen-kindex-req
+(defn build-kindex-channel
   [piece->insert-to-kindex]
   (go (while true
         (some-> (<! kindex-chan)
