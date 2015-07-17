@@ -28,8 +28,8 @@
       (idx/piece->make-index! piece))
     (store/pieces->store! pieces)))
 
-(cur log-tx tx/log-tx (b/get-state :log-db))
-(cur log-tx-done tx/log-tx-done (b/get-state :log-db))
+(cur log-tx tx/log-tx #(b/get-state :log-db))
+(cur log-tx-done tx/log-tx-done #(b/get-state :log-db))
 (cur mark-tx tx/mark-tx log-tx)
 (cur unmark-tx tx/unmark-tx log-tx-done)
 (cur run-tx tx/run-tx mark-tx unmark-tx)
@@ -74,7 +74,7 @@
   (let [ref (b/get-state  (str entity-name "-" key "-vidx"))]
     (if ref ref (init-vindex entity-name key))))
 
-(cur piece-name->id sc/piece-name->id (b/get-state :piece-name-ids))
+(cur piece-name->id sc/piece-name->id #(b/get-state :piece-name-ids))
 (cur id->piece store/id->piece (fn [entity-name id]
                                  (p/get! (b/get-state :pieces-db) id)))
 
@@ -102,7 +102,8 @@
        sc/pieces-name-ids->store
        schema->piece-name-ids
        (fn [v]
-         (p/put! schema-db 10000  v)))
+         (p/put! schema-db 10000  v)
+         v))
   (pieces-name-ids->store schemas))
 
 
@@ -124,6 +125,13 @@
   (idx/listen-kindex-req piece->insert-to-kindex)
   (store/listen-store-req piece->simple-piece simple-piece->store!))
 
+(defn attach-schema-db
+  [schemas]
+  (let [schema-db (b/get-state :schema-db)
+        origin-ids (p/get! schema-db 10000)]
+    (b/attach :piece-name-ids
+              (piece-name-ids schemas schema-db origin-ids))))
+
 (defrecord SimpleImdb [schemas]
   Imdb
   (pub [this cmd]
@@ -134,10 +142,7 @@
     (warmup/start-dbs)
     (open-listeners schemas)
     (b/attach :schemas schemas)
-    (let [schema-db (b/get-state :schema-db)
-          origin-ids (p/get! schema-db 10000)]
-      (b/attach :piece-name-ids
-                (piece-name-ids schemas schema-db origin-ids)))
+    (attach-schema-db schemas)
     (replay! (b/get-state :log-db))
     (println "starting imdb"))
   (stop! [this]

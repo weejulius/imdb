@@ -33,13 +33,14 @@
 
 (defcurrable log-tx
   "log the transcaction at the beginning, but now it is not nessesary"
-  [tx-id pieces] [log-db]
+  [tx-id pieces] [get-log-db]
   [])
 
 (defcurrable log-tx-done
   "log the done of the transaction"
-  [tx-id pieces] [log-db]
-  (log/log-tx log-db tx-id pieces))
+  [tx-id pieces] [get-log-db]
+  (-> (get-log-db)
+      (log/log-tx tx-id pieces)))
 
 (defcurrable mark-tx
   "mark the transaction is started"

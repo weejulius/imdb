@@ -24,8 +24,8 @@
 (defcurrable piece-name->id
   "get the mapped id from the piece name"
   [entity-name piece-name] [piece-name-ids]
-  (get-in piece-name-ids
-          [entity-name piece-name]))
+  (-> (piece-name-ids)
+      (get-in [entity-name piece-name])))
 
 
 (defcurrable piece-name->schema-def
