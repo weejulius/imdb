@@ -83,4 +83,4 @@
   [f]
   (stop!)
   (refresh)
-  (start! #(str "starting....")))
+  (start! #(str "starting.....")))
